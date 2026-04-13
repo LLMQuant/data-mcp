@@ -1,0 +1,47 @@
+{
+  "name": "@llmquant/data-mcp",
+  "version": "0.1.6",
+  "description": "LLMQuant Data MCP server — wiki, paper, crypto, and equity data tools for AI agents.",
+  "type": "module",
+  "bin": {
+    "llmquant-data-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "directory": "publish"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "inspect": "npx fastmcp inspect src/index.ts",
+    "inspect:local": "node scripts/inspect-local.mjs",
+    "lint": "eslint . --ext .ts,.mjs --max-warnings=0",
+    "prepare:publish": "node scripts/prepare-publish.mjs",
+    "start": "node dist/index.js",
+    "e2e": "node e2e/run-smoke.mjs",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "prepack": "npm run build && npm run prepare:publish"
+  },
+  "dependencies": {
+    "fastmcp": "^3.34.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.3",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
+    "eslint": "^8.57.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
