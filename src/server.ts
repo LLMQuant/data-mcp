@@ -10,6 +10,8 @@ import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-histo
 import { registerMacroIndicatorSearchTool } from "./tools/macro-indicator-search";
 import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snapshot";
 import { registerReadPaperTool } from "./tools/read-paper";
+import { registerSec13fByManagerTool } from "./tools/sec-13f-by-manager";
+import { registerSec13fByTickerTool } from "./tools/sec-13f-by-ticker";
 import { registerSecFilingBrowseTool } from "./tools/sec-filing-browse";
 import { registerSecFilingReadTool } from "./tools/sec-filing-read";
 import { registerReadWikiTool } from "./tools/read-wiki";
@@ -41,6 +43,8 @@ export function createServer(env: LlmquantEnv) {
   registerMacroIndicatorSnapshotTool(server, api);
   registerSecFilingBrowseTool(server, api);
   registerSecFilingReadTool(server, api);
+  registerSec13fByManagerTool(server, api);
+  registerSec13fByTickerTool(server, api);
 
   return server;
 }

@@ -68,6 +68,8 @@ Configure once — every agent in your stack gets the data.
 | `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
 | `sec_filing_browse` | Browse SEC 10-K / 10-Q filing metadata | 0 |
 | `sec_filing_read` | Read section text from a SEC filing | 1 |
+| `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × last 4 quarters) | 1 |
+| `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × last 4 quarters) | 1 |
 
 > More data products (news, company fundamentals, earnings transcripts, etc.) are on the [roadmap](#roadmap).
 

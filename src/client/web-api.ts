@@ -587,6 +587,106 @@ function mapPaperSectionManifest(item: PaperSectionManifestApiResult): PaperSect
   };
 }
 
+// ---------------------------------------------------------------------------
+// SEC 13F types
+// ---------------------------------------------------------------------------
+
+interface Sec13fHoldingApi {
+  cusip: string;
+  ticker: string | null;
+  name_of_issuer: string;
+  title_of_class: string;
+  value_usd: number;
+  shares: number;
+  shares_type: "SH" | "PRN";
+  investment_discretion: string;
+  voting_sole: number;
+  voting_shared: number;
+  voting_none: number;
+  put_call: "Put" | "Call" | null;
+}
+
+interface Sec13fHolderApi {
+  manager_cik: string;
+  manager_name: string;
+  manager_reportable_value_usd: number;
+  manager_reportable_value_period: string | null;
+  manager_scope_rank: number | null;
+  sec_13f_filing_id: string;
+  accession_number: string;
+  cusip: string;
+  title_of_class: string;
+  value_usd: number;
+  shares: number;
+  shares_type: "SH" | "PRN";
+}
+
+interface Sec13fScopeApi {
+  managers_seeded: number;
+  latest_period: string | null;
+  earliest_period: string | null;
+  selection_basis: string;
+  is_top_1000_only: boolean;
+}
+
+interface Sec13fByManagerApiResponse {
+  data: {
+    manager: {
+      manager_cik: string;
+      manager_name: string;
+      match_type: "cik" | "exact" | "alias" | "fuzzy";
+      latest_reportable_value_usd: number;
+      latest_reportable_value_period: string | null;
+      current_scope_rank: number | null;
+      is_in_latest_seed_universe: boolean;
+    } | null;
+    filing: {
+      sec_13f_filing_id: string;
+      filing_type: string;
+      accession_number: string;
+      filed_at: string;
+      period_of_report: string;
+      is_amendment: boolean;
+      table_entry_total: number | null;
+      table_value_total: number | null;
+      filing_url: string;
+    } | null;
+    holdings: Sec13fHoldingApi[];
+  };
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+    scope: Sec13fScopeApi;
+    scope_notice: string;
+  };
+}
+
+interface Sec13fByTickerApiResponse {
+  data: {
+    ticker: string;
+    period_of_report: string;
+    total_holders_in_scope: number;
+    aggregate_value_usd: number;
+    holders: Sec13fHolderApi[];
+  };
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+    scope: Sec13fScopeApi;
+    scope_notice: string;
+  };
+}
+
+export interface Sec13fByManagerResponse {
+  data: Sec13fByManagerApiResponse["data"];
+  meta: Sec13fByManagerApiResponse["meta"];
+}
+
+export interface Sec13fByTickerResponse {
+  data: Sec13fByTickerApiResponse["data"];
+  meta: Sec13fByTickerApiResponse["meta"];
+}
+
 export class LlmquantWebApiClient {
   constructor(private readonly env: LlmquantEnv) {}
 
@@ -1020,6 +1120,54 @@ export class LlmquantWebApiClient {
         creditsUsed: response.meta.creditsUsed,
       },
     };
+  }
+
+  async getSec13fByManager(params: {
+    managerCik?: string;
+    managerName?: string;
+    period?: string;
+    limit?: number;
+  }): Promise<Sec13fByManagerResponse> {
+    const url = new URL("/api/filings/13f/by-manager", this.env.baseUrl);
+    if (params.managerCik) {
+      url.searchParams.set("manager_cik", params.managerCik);
+    }
+    if (params.managerName) {
+      url.searchParams.set("manager_name", params.managerName);
+    }
+    if (params.period) {
+      url.searchParams.set("period", params.period);
+    }
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+
+    const response = await this.request<Sec13fByManagerApiResponse>(url, {
+      method: "GET",
+    });
+
+    return { data: response.data, meta: response.meta };
+  }
+
+  async getSec13fByTicker(params: {
+    ticker: string;
+    period?: string;
+    limit?: number;
+  }): Promise<Sec13fByTickerResponse> {
+    const url = new URL("/api/filings/13f/by-ticker", this.env.baseUrl);
+    url.searchParams.set("ticker", params.ticker);
+    if (params.period) {
+      url.searchParams.set("period", params.period);
+    }
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+
+    const response = await this.request<Sec13fByTickerApiResponse>(url, {
+      method: "GET",
+    });
+
+    return { data: response.data, meta: response.meta };
   }
 
   private async request<T>(pathOrUrl: string | URL, init: RequestInit) {

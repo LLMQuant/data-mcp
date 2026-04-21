@@ -101,3 +101,46 @@ export const secQuarterSchema = z
   .int()
   .min(1, "quarter must be at least 1.")
   .max(4, "quarter must be 4 or less.");
+
+export const sec13fManagerCikSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{1,10}$/u,
+    "manager_cik must be a numeric SEC CIK (1-10 digits, no leading zeros required).",
+  );
+
+export const sec13fManagerNameSchema = z
+  .string()
+  .trim()
+  .min(1, "manager_name must not be empty.")
+  .max(200, "manager_name must be 200 characters or less.");
+
+export const sec13fPeriodSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{4}-\d{2}-\d{2}$/u,
+    "period must be in YYYY-MM-DD format (quarter-end date).",
+  );
+
+export const sec13fByManagerLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(500, "limit must be 500 or less.");
+
+export const sec13fByTickerLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(1000, "limit must be 1000 or less.");
+
+export const sec13fTickerSchema = z
+  .string()
+  .trim()
+  .min(1, "ticker is required.")
+  .regex(
+    /^[A-Za-z][A-Za-z0-9.-]*$/u,
+    "ticker must be a valid equity symbol (e.g. AAPL, NVDA, BRK.B).",
+  );

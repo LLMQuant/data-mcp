@@ -4,4 +4,3 @@ publish/
 *.tsbuildinfo
 .env
 .env.local
-.DS_Store
