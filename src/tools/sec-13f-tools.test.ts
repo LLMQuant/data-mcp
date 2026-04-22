@@ -4,6 +4,7 @@ import type { FastMCP } from "fastmcp";
 
 import { registerSec13fByManagerTool } from "./sec-13f-by-manager";
 import { registerSec13fByTickerTool } from "./sec-13f-by-ticker";
+import { registerSec13fListTopManagersTool } from "./sec-13f-list-top-managers";
 
 function createToolHarness() {
   const tools = new Map<string, { execute: (input: unknown) => Promise<string> }>();
@@ -254,4 +255,125 @@ test("sec_13f_list_ticker_holders handles no-hit empty result", async () => {
 
   assert.match(payload.summary, /no holders in Top 1000 scope/);
   assert.equal(payload.item.holders.length, 0);
+});
+
+test("sec_13f_list_top_managers returns ranked managers with scope metadata", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async listTop13FManagers() {
+      return {
+        data: {
+          managers: [
+            {
+              manager_cik: "102909",
+              manager_name: "VANGUARD GROUP INC",
+              aliases: ["VANGUARD"],
+              current_scope_rank: 1,
+              latest_reportable_value_usd: 5_000_000_000_000,
+              latest_reportable_value_period: "2025-12-31",
+            },
+            {
+              manager_cik: "1067983",
+              manager_name: "BERKSHIRE HATHAWAY INC",
+              aliases: ["BERKSHIRE", "BRK"],
+              current_scope_rank: 7,
+              latest_reportable_value_usd: 302_459_211_458,
+              latest_reportable_value_period: "2025-12-31",
+            },
+          ],
+        },
+        meta: {
+          creditsUsed: 1,
+          remainingCredits: 99,
+          scope: SCOPE,
+          scope_notice: "13F data covers the latest-quarter top 1,000",
+        },
+      };
+    },
+  };
+
+  registerSec13fListTopManagersTool(harness.server, api as never);
+  const payload = JSON.parse(
+    await harness.get("sec_13f_list_top_managers").execute({
+      limit: 30,
+    }),
+  ) as {
+    summary: string;
+    item: {
+      managers: Array<{
+        manager_cik: string;
+        current_scope_rank: number;
+      }>;
+    };
+    meta: { creditsUsed: number; scope: { latest_period: string } };
+  };
+
+  assert.match(payload.summary, /Top 2 smart money managers/);
+  assert.match(payload.summary, /VANGUARD GROUP INC/);
+  assert.equal(payload.item.managers[0].manager_cik, "102909");
+  assert.equal(payload.item.managers[0].current_scope_rank, 1);
+  assert.equal(payload.item.managers[1].current_scope_rank, 7);
+  assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.scope.latest_period, "2025-12-31");
+});
+
+test("sec_13f_list_top_managers surfaces empty scope with explicit summary", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async listTop13FManagers() {
+      return {
+        data: { managers: [] },
+        meta: {
+          creditsUsed: 1,
+          remainingCredits: 99,
+          scope: SCOPE,
+          scope_notice:
+            "13F data covers the latest-quarter top 1,000. Only the latest ranked quarter (2025-12-31) is stored; 2024-06-30 has no ranking.",
+        },
+      };
+    },
+  };
+
+  registerSec13fListTopManagersTool(harness.server, api as never);
+  const payload = JSON.parse(
+    await harness.get("sec_13f_list_top_managers").execute({
+      limit: 30,
+      period: "2024-06-30",
+    }),
+  ) as { summary: string; item: { managers: unknown[] } };
+
+  assert.match(payload.summary, /No ranked managers available/);
+  assert.equal(payload.item.managers.length, 0);
+});
+
+test("sec_13f_list_top_managers avoids exposing 'n/a' when scope.latest_period is null", async () => {
+  const harness = createToolHarness();
+  const emptyScope = {
+    managers_seeded: 0,
+    latest_period: null,
+    earliest_period: null,
+    selection_basis: "latest quarter 13F reportable value desc",
+    is_top_1000_only: true,
+  };
+  const api = {
+    async listTop13FManagers() {
+      return {
+        data: { managers: [] },
+        meta: {
+          creditsUsed: 1,
+          remainingCredits: 99,
+          scope: emptyScope,
+          scope_notice: "13F data covers the latest-quarter top 1,000 institutional managers.",
+        },
+      };
+    },
+  };
+
+  registerSec13fListTopManagersTool(harness.server, api as never);
+  const payload = JSON.parse(
+    await harness.get("sec_13f_list_top_managers").execute({ limit: 30 }),
+  ) as { summary: string };
+
+  assert.doesNotMatch(payload.summary, /n\/a/);
+  assert.match(payload.summary, /seed may not have been run/);
 });

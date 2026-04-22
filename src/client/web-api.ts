@@ -677,6 +677,27 @@ interface Sec13fByTickerApiResponse {
   };
 }
 
+interface Sec13fTopManagerApi {
+  manager_cik: string;
+  manager_name: string;
+  aliases: string[];
+  current_scope_rank: number;
+  latest_reportable_value_usd: number;
+  latest_reportable_value_period: string | null;
+}
+
+interface Sec13fTopManagersApiResponse {
+  data: {
+    managers: Sec13fTopManagerApi[];
+  };
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+    scope: Sec13fScopeApi;
+    scope_notice: string;
+  };
+}
+
 export interface Sec13fByManagerResponse {
   data: Sec13fByManagerApiResponse["data"];
   meta: Sec13fByManagerApiResponse["meta"];
@@ -685,6 +706,11 @@ export interface Sec13fByManagerResponse {
 export interface Sec13fByTickerResponse {
   data: Sec13fByTickerApiResponse["data"];
   meta: Sec13fByTickerApiResponse["meta"];
+}
+
+export interface Sec13fTopManagersResponse {
+  data: Sec13fTopManagersApiResponse["data"];
+  meta: Sec13fTopManagersApiResponse["meta"];
 }
 
 export class LlmquantWebApiClient {
@@ -1164,6 +1190,25 @@ export class LlmquantWebApiClient {
     }
 
     const response = await this.request<Sec13fByTickerApiResponse>(url, {
+      method: "GET",
+    });
+
+    return { data: response.data, meta: response.meta };
+  }
+
+  async listTop13FManagers(params: {
+    limit?: number;
+    period?: string;
+  }): Promise<Sec13fTopManagersResponse> {
+    const url = new URL("/api/filings/13f/managers", this.env.baseUrl);
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.period) {
+      url.searchParams.set("period", params.period);
+    }
+
+    const response = await this.request<Sec13fTopManagersApiResponse>(url, {
       method: "GET",
     });
 

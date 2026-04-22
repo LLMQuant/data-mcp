@@ -1,6 +1,6 @@
 {
   "name": "@llmquant/data-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "LLMQuant Data MCP server — wiki, paper, crypto, equity, macro, and SEC filing tools for AI agents.",
   "type": "module",
   "bin": {
@@ -10,8 +10,7 @@
     "dist"
   ],
   "publishConfig": {
-    "access": "public",
-    "directory": "publish"
+    "access": "public"
   },
   "engines": {
     "node": ">=20"
@@ -28,7 +27,7 @@
     "test": "node --import tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "prepack": "npm run build && npm run prepare:publish"
+    "publish:pkg": "bash scripts/publish.sh"
   },
   "dependencies": {
     "fastmcp": "^3.34.0",

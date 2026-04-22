@@ -136,6 +136,12 @@ export const sec13fByTickerLimitSchema = z
   .min(1, "limit must be at least 1.")
   .max(1000, "limit must be 1000 or less.");
 
+export const sec13fTopManagersLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(1000, "limit must be 1000 or less.");
+
 export const sec13fTickerSchema = z
   .string()
   .trim()

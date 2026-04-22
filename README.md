@@ -70,6 +70,7 @@ Configure once — every agent in your stack gets the data.
 | `sec_filing_read` | Read section text from a SEC filing | 1 |
 | `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × last 4 quarters) | 1 |
 | `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × last 4 quarters) | 1 |
+| `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
 
 > More data products (news, company fundamentals, earnings transcripts, etc.) are on the [roadmap](#roadmap).
 

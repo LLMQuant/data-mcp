@@ -12,6 +12,7 @@ import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snap
 import { registerReadPaperTool } from "./tools/read-paper";
 import { registerSec13fByManagerTool } from "./tools/sec-13f-by-manager";
 import { registerSec13fByTickerTool } from "./tools/sec-13f-by-ticker";
+import { registerSec13fListTopManagersTool } from "./tools/sec-13f-list-top-managers";
 import { registerSecFilingBrowseTool } from "./tools/sec-filing-browse";
 import { registerSecFilingReadTool } from "./tools/sec-filing-read";
 import { registerReadWikiTool } from "./tools/read-wiki";
@@ -45,6 +46,7 @@ export function createServer(env: LlmquantEnv) {
   registerSecFilingReadTool(server, api);
   registerSec13fByManagerTool(server, api);
   registerSec13fByTickerTool(server, api);
+  registerSec13fListTopManagersTool(server, api);
 
   return server;
 }
