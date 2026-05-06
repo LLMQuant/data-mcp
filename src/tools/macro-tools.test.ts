@@ -58,6 +58,8 @@ test("macro_indicator_history formats observations and preserves metadata", asyn
           count: 2,
           creditsUsed: 1,
           remainingCredits: 31,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },
@@ -71,17 +73,40 @@ test("macro_indicator_history formats observations and preserves metadata", asyn
     }),
   ) as {
     summary: string;
-    item: { seriesId: string; frequency: string; observations: Array<{ value: number | null }> };
-    meta: { count: number; creditsUsed: number };
+    item: {
+      seriesId: string;
+      title: string;
+      frequency: string;
+      units: string;
+      observations: Array<{
+        value: number | null;
+        realtimeStart: string;
+        realtimeEnd: string;
+      }>;
+      attribution: string;
+    };
+    meta: {
+      count: number;
+      creditsUsed: number;
+      remainingCredits: number;
+      sourceNotice: string;
+    };
   };
 
   assert.match(payload.summary, /us\.cpi\.headline \(Monthly\): 2 observation/);
   assert.equal(payload.item.seriesId, "CPIAUCSL");
-  assert.equal(payload.item.frequency, "Monthly (Index 1982-1984=100)");
+  assert.equal(payload.item.frequency, "Monthly");
+  assert.equal(payload.item.units, "Index 1982-1984=100");
+  assert.equal(payload.item.title, "Consumer Price Index for All Urban Consumers: All Items");
+  assert.equal(payload.item.attribution, "FRED");
   assert.equal(payload.item.observations.length, 2);
   assert.equal(payload.item.observations[1]?.value, 322.18);
+  assert.equal(payload.item.observations[0]?.realtimeStart, "2026-03-12");
+  assert.equal(payload.item.observations[0]?.realtimeEnd, "2026-03-12");
   assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 31);
+  assert.match(payload.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
 });
 
 test("macro_indicator_history handles empty result", async () => {
@@ -102,6 +127,8 @@ test("macro_indicator_history handles empty result", async () => {
           count: 0,
           creditsUsed: 1,
           remainingCredits: 30,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },
@@ -117,6 +144,56 @@ test("macro_indicator_history handles empty result", async () => {
 
   assert.match(payload.summary, /No observations found for us\.money_supply\.m2/);
   assert.equal(payload.item.observations.length, 0);
+});
+
+test("macro_indicator_history surfaces stale flag when upstream refresh failed", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getMacroHistorical() {
+      return {
+        data: {
+          indicator: "us.cpi.headline",
+          seriesId: "CPIAUCSL",
+          title: "Consumer Price Index for All Urban Consumers: All Items",
+          frequency: "Monthly",
+          units: "Index 1982-1984=100",
+          observations: [
+            {
+              date: "2026-03-01",
+              value: 322.18,
+              realtimeStart: "2026-04-10",
+              realtimeEnd: "2026-04-10",
+            },
+          ],
+          attribution: "FRED",
+        },
+        meta: {
+          count: 1,
+          stale: true,
+          creditsUsed: 1,
+          remainingCredits: 27,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+        },
+      };
+    },
+  };
+
+  registerMacroIndicatorHistoryTool(harness.server, api as never);
+  const payload = JSON.parse(
+    await harness.get("macro_indicator_history").execute({
+      indicator: "us.cpi.headline",
+      limit: 1,
+    }),
+  ) as {
+    item: { observations: unknown[] };
+    meta: { stale?: boolean; remainingCredits: number; sourceNotice: string };
+  };
+
+  assert.equal(payload.meta.stale, true);
+  assert.equal(payload.meta.remainingCredits, 27);
+  assert.equal(payload.item.observations.length, 1);
+  assert.match(payload.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
 });
 
 test("macro_indicator_search formats catalog results and preserves metadata", async () => {
@@ -153,6 +230,8 @@ test("macro_indicator_search formats catalog results and preserves metadata", as
         meta: {
           count: 2,
           creditsUsed: 1,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },
@@ -167,7 +246,7 @@ test("macro_indicator_search formats catalog results and preserves metadata", as
   ) as {
     summary: string;
     items: Array<{ indicator: string; seriesId: string; category: string }>;
-    meta: { count: number; creditsUsed: number };
+    meta: { count: number; creditsUsed: number; sourceNotice: string };
   };
 
   assert.match(payload.summary, /Found 2 macro indicator/);
@@ -177,6 +256,7 @@ test("macro_indicator_search formats catalog results and preserves metadata", as
   assert.equal(payload.items[0]?.category, "Labor");
   assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.match(payload.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
 });
 
 test("macro_indicator_search handles empty result", async () => {
@@ -188,6 +268,8 @@ test("macro_indicator_search handles empty result", async () => {
         meta: {
           count: 0,
           creditsUsed: 1,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },
@@ -231,6 +313,9 @@ test("macro_indicator_snapshot formats latest value and delta metadata", async (
         },
         meta: {
           creditsUsed: 1,
+          remainingCredits: 29,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },
@@ -243,14 +328,29 @@ test("macro_indicator_snapshot formats latest value and delta metadata", async (
     }),
   ) as {
     summary: string;
-    item: { latest: { value: number | null } | null; deltaPct: number | null };
-    meta: { creditsUsed: number };
+    item: {
+      latest: {
+        value: number | null;
+        realtimeStart: string;
+        realtimeEnd: string;
+      } | null;
+      deltaPct: number | null;
+    };
+    meta: {
+      creditsUsed: number;
+      remainingCredits: number;
+      sourceNotice: string;
+    };
   };
 
   assert.match(payload.summary, /us\.rates\.fed_funds latest: 4\.5, delta \+5\.88%/);
   assert.equal(payload.item.latest?.value, 4.5);
+  assert.equal(payload.item.latest?.realtimeStart, "2026-04-10");
+  assert.equal(payload.item.latest?.realtimeEnd, "2026-04-10");
   assert.equal(payload.item.deltaPct, 5.88);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 29);
+  assert.match(payload.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
 });
 
 test("macro_indicator_snapshot handles empty result", async () => {
@@ -272,6 +372,9 @@ test("macro_indicator_snapshot handles empty result", async () => {
         },
         meta: {
           creditsUsed: 1,
+          remainingCredits: 28,
+          sourceNotice:
+            "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
         },
       };
     },

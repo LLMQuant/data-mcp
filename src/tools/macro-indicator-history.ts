@@ -68,16 +68,8 @@ export function registerMacroIndicatorHistoryTool(
 
         return formatToolResult({
           summary,
-          item: {
-            indicator: response.data.indicator,
-            seriesId: response.data.seriesId,
-            frequency: response.data.units ? `${response.data.frequency} (${response.data.units})` : response.data.frequency,
-            observations: response.data.observations,
-          },
-          meta: {
-            count: response.meta.count,
-            creditsUsed: response.meta.creditsUsed,
-          },
+          item: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

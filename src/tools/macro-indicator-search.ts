@@ -62,6 +62,7 @@ export function registerMacroIndicatorSearchTool(
           meta: {
             count: response.meta.count,
             creditsUsed: response.meta.creditsUsed,
+            sourceNotice: response.meta.sourceNotice,
           },
         });
       } catch (error) {

@@ -234,21 +234,6 @@ interface CryptoHistoricalApiResponse {
   };
 }
 
-interface CryptoSnapshotApiResponse {
-  data: {
-    price: number;
-    ticker: string;
-    day_change: number;
-    day_change_percent: number;
-    volume_24h: number;
-    time: string;
-  };
-  meta: {
-    creditsUsed: number;
-    remainingCredits: number;
-  };
-}
-
 export interface CryptoKlineBar {
   open: number;
   high: number;
@@ -432,6 +417,7 @@ export interface MacroIndicatorsResponse {
   meta: {
     count: number;
     creditsUsed: number;
+    sourceNotice: string;
   };
 }
 
@@ -454,7 +440,10 @@ export interface MacroHistoricalResponse {
   };
   meta: {
     count: number;
+    stale?: boolean;
     creditsUsed: number;
+    remainingCredits: number;
+    sourceNotice: string;
   };
 }
 
@@ -473,6 +462,8 @@ export interface MacroSnapshotResponse {
   };
   meta: {
     creditsUsed: number;
+    remainingCredits: number;
+    sourceNotice: string;
   };
 }
 
@@ -941,21 +932,7 @@ export class LlmquantWebApiClient {
     const url = new URL("/api/crypto/snapshot", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
 
-    const response = await this.request<CryptoSnapshotApiResponse>(url, {
-      method: "GET",
-    });
-
-    return {
-      data: {
-        price: response.data.price,
-        ticker: response.data.ticker,
-        dayChange: response.data.day_change,
-        dayChangePercent: response.data.day_change_percent,
-        volume24h: response.data.volume_24h,
-        time: response.data.time,
-      },
-      meta: response.meta,
-    };
+    return this.request<CryptoSnapshotResponse>(url, { method: "GET" });
   }
 
   async getMacroIndicators(params: {
@@ -985,7 +962,11 @@ export class LlmquantWebApiClient {
         copyrightStatus: item.copyright_status,
         attribution: item.attribution,
       })),
-      meta: { count: response.meta.count, creditsUsed: response.meta.creditsUsed },
+      meta: {
+        count: response.meta.count,
+        creditsUsed: response.meta.creditsUsed,
+        sourceNotice: response.meta.sourceNotice,
+      },
     };
   }
 
@@ -1020,7 +1001,7 @@ export class LlmquantWebApiClient {
         })),
         attribution: response.data.attribution,
       },
-      meta: { count: response.meta.count, creditsUsed: response.meta.creditsUsed },
+      meta: response.meta,
     };
   }
 
@@ -1054,7 +1035,7 @@ export class LlmquantWebApiClient {
         deltaPct: response.data.delta_pct,
         attribution: response.data.attribution,
       },
-      meta: { creditsUsed: response.meta.creditsUsed },
+      meta: response.meta,
     };
   }
 

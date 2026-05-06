@@ -247,7 +247,7 @@ test("getCryptoHistorical builds query params and returns kline data", async () 
   }
 });
 
-test("getCryptoSnapshot maps snake_case response fields to camelCase", async () => {
+test("getCryptoSnapshot returns crypto snapshot fields in camelCase (1:1 HTTP passthrough)", async () => {
   const calls: Array<{ url: string }> = [];
   const originalFetch = globalThis.fetch;
 
@@ -258,9 +258,9 @@ test("getCryptoSnapshot maps snake_case response fields to camelCase", async () 
       data: {
         price: 87500.25,
         ticker: "BTC-USD",
-        day_change: 1200.5,
-        day_change_percent: 1.39,
-        volume_24h: 28500.75,
+        dayChange: 1200.5,
+        dayChangePercent: 1.39,
+        volume24h: 28500.75,
         time: "2026-03-30T12:00:00Z",
       },
       meta: { creditsUsed: 1, remainingCredits: 97 },
@@ -411,6 +411,144 @@ test("readPaper posts to the paper read route and maps nested sections", async (
     assert.equal(response.data.sections[0]?.bodyMarkdown, "## Results");
     assert.equal(response.data.availableSections[1]?.sectionKey, "results");
     assert.equal(response.data.fullTextCharCount, 340);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Macro
+// ---------------------------------------------------------------------------
+
+test("getMacroHistorical maps snake_case observations and passes meta through", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: {
+        indicator: "us.cpi.headline",
+        series_id: "CPIAUCSL",
+        title: "Consumer Price Index for All Urban Consumers: All Items",
+        frequency: "Monthly",
+        units: "Index 1982-1984=100",
+        observations: [
+          {
+            date: "2026-02-01",
+            value: 321.45,
+            realtime_start: "2026-03-12",
+            realtime_end: "2026-03-12",
+          },
+          {
+            date: "2026-03-01",
+            value: 322.18,
+            realtime_start: "2026-04-10",
+            realtime_end: "2026-04-10",
+          },
+        ],
+        attribution: "Source: U.S. Bureau of Labor Statistics via FRED",
+      },
+      meta: {
+        count: 2,
+        stale: false,
+        creditsUsed: 1,
+        remainingCredits: 31,
+        sourceNotice:
+          "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getMacroHistorical({
+      indicator: "us.cpi.headline",
+      startDate: "2026-02-01",
+      endDate: "2026-03-31",
+      limit: 60,
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/macro/historical");
+    assert.equal(url.searchParams.get("indicator"), "us.cpi.headline");
+    assert.equal(url.searchParams.get("start_date"), "2026-02-01");
+    assert.equal(url.searchParams.get("end_date"), "2026-03-31");
+    assert.equal(url.searchParams.get("limit"), "60");
+
+    assert.equal(response.data.seriesId, "CPIAUCSL");
+    assert.equal(response.data.frequency, "Monthly");
+    assert.equal(response.data.units, "Index 1982-1984=100");
+    assert.equal(response.data.observations[0]?.realtimeStart, "2026-03-12");
+    assert.equal(response.data.observations[0]?.realtimeEnd, "2026-03-12");
+
+    assert.equal(response.meta.count, 2);
+    assert.equal(response.meta.stale, false);
+    assert.equal(response.meta.creditsUsed, 1);
+    assert.equal(response.meta.remainingCredits, 31);
+    assert.match(response.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getMacroSnapshot maps snake_case latest fields and passes meta through", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: {
+        indicator: "us.unemployment_rate",
+        series_id: "UNRATE",
+        title: "Unemployment Rate",
+        frequency: "Monthly",
+        units: "Percent",
+        latest: {
+          date: "2026-03-01",
+          value: 4.1,
+          realtime_start: "2026-04-04",
+          realtime_end: "2026-04-04",
+        },
+        previous: {
+          date: "2026-02-01",
+          value: 4.0,
+        },
+        delta_abs: 0.1,
+        delta_pct: 2.5,
+        attribution: "Source: U.S. Bureau of Labor Statistics via FRED",
+      },
+      meta: {
+        creditsUsed: 1,
+        remainingCredits: 25,
+        sourceNotice:
+          "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getMacroSnapshot({
+      seriesId: "UNRATE",
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/macro/snapshot");
+    assert.equal(url.searchParams.get("series_id"), "UNRATE");
+
+    assert.equal(response.data.seriesId, "UNRATE");
+    assert.equal(response.data.latest?.realtimeStart, "2026-04-04");
+    assert.equal(response.data.latest?.realtimeEnd, "2026-04-04");
+    assert.equal(response.data.deltaAbs, 0.1);
+    assert.equal(response.data.deltaPct, 2.5);
+
+    assert.equal(response.meta.creditsUsed, 1);
+    assert.equal(response.meta.remainingCredits, 25);
+    assert.match(response.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -52,9 +52,7 @@ export function registerMacroIndicatorSnapshotTool(
         return formatToolResult({
           summary,
           item: response.data,
-          meta: {
-            creditsUsed: response.meta.creditsUsed,
-          },
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));
