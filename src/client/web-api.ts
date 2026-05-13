@@ -702,6 +702,103 @@ export interface Sec13fByTickerResponse {
   meta: Sec13fByTickerApiResponse["meta"];
 }
 
+interface EtfTopHoldingApi {
+  holding_name: string;
+  ticker: string | null;
+  cusip: string | null;
+  isin: string | null;
+  sector: string | null;
+  country: string | null;
+  asset_type: string | null;
+  weight: number | null;
+  market_value: number | null;
+}
+
+interface EtfHoldingApi {
+  holding_name: string;
+  ticker: string | null;
+  cusip: string | null;
+  isin: string | null;
+  sedol: string | null;
+  asset_type: string | null;
+  sector: string | null;
+  country: string | null;
+  shares: number | null;
+  market_value: number | null;
+  weight: number | null;
+  notional_value: number | null;
+  source: string;
+  source_url: string | null;
+  as_of_date: string | null;
+}
+
+interface EtfLookupApiResponse {
+  data: {
+    ticker: string;
+    fund_name: string | null;
+    issuer: string | null;
+    asset_class: string | null;
+    category: string | null;
+    cik: string | null;
+    series_id: string | null;
+    class_id: string | null;
+    expense_ratio: number | null;
+    aum: number | null;
+    nav: number | null;
+    market_price: number | null;
+    premium_discount_pct: number | null;
+    inception_date: string | null;
+    holdings_count: number | null;
+    top_holdings: EtfTopHoldingApi[];
+    sector_exposure: unknown[] | null;
+    country_exposure: unknown[] | null;
+    asset_type_exposure: unknown[] | null;
+    source: string | null;
+    source_url: string | null;
+    as_of_date: string | null;
+    fetched_at: string | null;
+    stale: boolean;
+    coverage_status: "full" | "partial" | "stale" | "unsupported";
+    coverage_notice: string;
+  };
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+interface EtfHoldingsApiResponse {
+  data: {
+    ticker: string;
+    fund_name: string | null;
+    issuer: string | null;
+    holdings: EtfHoldingApi[];
+    source: string | null;
+    source_url: string | null;
+    as_of_date: string | null;
+    fetched_at: string | null;
+    stale: boolean;
+    coverage_status: "full" | "partial" | "stale" | "unsupported";
+    coverage_notice: string;
+  };
+  meta: {
+    count: number;
+    limit: number;
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface EtfLookupResponse {
+  data: EtfLookupApiResponse["data"];
+  meta: EtfLookupApiResponse["meta"];
+}
+
+export interface EtfHoldingsResponse {
+  data: EtfHoldingsApiResponse["data"];
+  meta: EtfHoldingsApiResponse["meta"];
+}
+
 export interface Sec13fTopManagersResponse {
   data: Sec13fTopManagersApiResponse["data"];
   meta: Sec13fTopManagersApiResponse["meta"];
@@ -1208,6 +1305,32 @@ export class LlmquantWebApiClient {
       method: "GET",
     });
 
+    return { data: response.data, meta: response.meta };
+  }
+
+  async getEtfLookup(params: { ticker: string }): Promise<EtfLookupResponse> {
+    const url = new URL("/api/etf/lookup", this.env.baseUrl);
+    url.searchParams.set("ticker", params.ticker);
+
+    const response = await this.request<EtfLookupApiResponse>(url, {
+      method: "GET",
+    });
+    return { data: response.data, meta: response.meta };
+  }
+
+  async getEtfHoldings(params: {
+    ticker: string;
+    limit?: number;
+  }): Promise<EtfHoldingsResponse> {
+    const url = new URL("/api/etf/holdings", this.env.baseUrl);
+    url.searchParams.set("ticker", params.ticker);
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+
+    const response = await this.request<EtfHoldingsApiResponse>(url, {
+      method: "GET",
+    });
     return { data: response.data, meta: response.meta };
   }
 

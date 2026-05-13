@@ -147,3 +147,19 @@ export const sec13fTickerSchema = z
     /^[A-Za-z][A-Za-z0-9.-]*$/u,
     "ticker must be a valid equity symbol (e.g. AAPL, NVDA, BRK.B).",
   );
+
+export const etfTickerSchema = z
+  .string()
+  .trim()
+  .min(1, "ticker is required.")
+  .max(16, "ticker must be 16 characters or less.")
+  .regex(
+    /^[A-Za-z0-9.-]+$/u,
+    "ticker must contain only letters, digits, '.' or '-' (e.g. SPY, BRK.B).",
+  );
+
+export const etfHoldingsLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(500, "limit must be 500 or less.");

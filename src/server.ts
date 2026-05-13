@@ -6,6 +6,8 @@ import { LlmquantWebApiClient } from "./client/web-api";
 import { registerCryptoHistoricalTool } from "./tools/crypto-historical";
 import { registerCryptoSnapshotTool } from "./tools/crypto-snapshot";
 import { registerEquityHistoricalTool } from "./tools/equity-historical";
+import { registerEtfHoldingsTool } from "./tools/etf-holdings";
+import { registerEtfLookupTool } from "./tools/etf-lookup";
 import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-history";
 import { registerMacroIndicatorSearchTool } from "./tools/macro-indicator-search";
 import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snapshot";
@@ -47,6 +49,8 @@ export function createServer(env: LlmquantEnv) {
   registerSec13fByManagerTool(server, api);
   registerSec13fByTickerTool(server, api);
   registerSec13fListTopManagersTool(server, api);
+  registerEtfLookupTool(server, api);
+  registerEtfHoldingsTool(server, api);
 
   return server;
 }
