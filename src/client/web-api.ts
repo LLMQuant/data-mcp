@@ -600,9 +600,9 @@ interface Sec13fHoldingApi {
 interface Sec13fHolderApi {
   manager_cik: string;
   manager_name: string;
-  manager_reportable_value_usd: number;
-  manager_reportable_value_period: string | null;
-  manager_scope_rank: number | null;
+  manager_period_reportable_value_usd: number;
+  manager_period_of_report: string | null;
+  manager_period_rank: number | null;
   sec_13f_filing_id: string;
   accession_number: string;
   cusip: string;
@@ -614,21 +614,23 @@ interface Sec13fHolderApi {
 
 interface Sec13fScopeApi {
   managers_seeded: number;
-  latest_period: string | null;
-  earliest_period: string | null;
+  universe_period: string | null;
+  available_ranking_periods: string[];
   selection_basis: string;
   is_top_1000_only: boolean;
 }
 
 interface Sec13fByManagerApiResponse {
   data: {
+    ranking_period: string | null;
     manager: {
       manager_cik: string;
       manager_name: string;
       match_type: "cik" | "exact" | "alias" | "fuzzy";
       latest_reportable_value_usd: number;
       latest_reportable_value_period: string | null;
-      current_scope_rank: number | null;
+      period_rank: number | null;
+      period_reportable_value_usd: number | null;
       is_in_latest_seed_universe: boolean;
     } | null;
     filing: {
@@ -655,7 +657,7 @@ interface Sec13fByManagerApiResponse {
 interface Sec13fByTickerApiResponse {
   data: {
     ticker: string;
-    period_of_report: string;
+    ranking_period: string | null;
     total_holders_in_scope: number;
     aggregate_value_usd: number;
     holders: Sec13fHolderApi[];
@@ -672,13 +674,14 @@ interface Sec13fTopManagerApi {
   manager_cik: string;
   manager_name: string;
   aliases: string[];
-  current_scope_rank: number;
-  latest_reportable_value_usd: number;
-  latest_reportable_value_period: string | null;
+  period_rank: number;
+  period_reportable_value_usd: number;
 }
 
 interface Sec13fTopManagersApiResponse {
   data: {
+    universe_period: string | null;
+    ranking_period: string | null;
     managers: Sec13fTopManagerApi[];
   };
   meta: {
@@ -1132,7 +1135,8 @@ export class LlmquantWebApiClient {
   async getSec13fByManager(params: {
     managerCik?: string;
     managerName?: string;
-    period?: string;
+    year?: number;
+    quarter?: number;
     limit?: number;
   }): Promise<Sec13fByManagerResponse> {
     const url = new URL("/api/filings/13f/by-manager", this.env.baseUrl);
@@ -1142,8 +1146,11 @@ export class LlmquantWebApiClient {
     if (params.managerName) {
       url.searchParams.set("manager_name", params.managerName);
     }
-    if (params.period) {
-      url.searchParams.set("period", params.period);
+    if (params.year != null) {
+      url.searchParams.set("year", String(params.year));
+    }
+    if (params.quarter != null) {
+      url.searchParams.set("quarter", String(params.quarter));
     }
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
@@ -1158,13 +1165,17 @@ export class LlmquantWebApiClient {
 
   async getSec13fByTicker(params: {
     ticker: string;
-    period?: string;
+    year?: number;
+    quarter?: number;
     limit?: number;
   }): Promise<Sec13fByTickerResponse> {
     const url = new URL("/api/filings/13f/by-ticker", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
-    if (params.period) {
-      url.searchParams.set("period", params.period);
+    if (params.year != null) {
+      url.searchParams.set("year", String(params.year));
+    }
+    if (params.quarter != null) {
+      url.searchParams.set("quarter", String(params.quarter));
     }
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
@@ -1179,14 +1190,18 @@ export class LlmquantWebApiClient {
 
   async listTop13FManagers(params: {
     limit?: number;
-    period?: string;
+    year?: number;
+    quarter?: number;
   }): Promise<Sec13fTopManagersResponse> {
     const url = new URL("/api/filings/13f/managers", this.env.baseUrl);
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
     }
-    if (params.period) {
-      url.searchParams.set("period", params.period);
+    if (params.year != null) {
+      url.searchParams.set("year", String(params.year));
+    }
+    if (params.quarter != null) {
+      url.searchParams.set("quarter", String(params.quarter));
     }
 
     const response = await this.request<Sec13fTopManagersApiResponse>(url, {

@@ -5,8 +5,9 @@ import type { LlmquantWebApiClient } from "../client/web-api";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
-  sec13fPeriodSchema,
   sec13fTopManagersLimitSchema,
+  secQuarterSchema,
+  secYearSchema,
 } from "../shared/schemas";
 
 function formatNumber(value: number): string {
@@ -20,54 +21,67 @@ export function registerSec13fListTopManagersTool(
   server.addTool({
     name: "sec_13f_list_top_managers",
     description:
-      "List the top N institutional managers from the latest-quarter SEC Form 13F " +
-      "smart money universe (up to top 1,000), ranked by 13F reportable value " +
-      "descending. Returns { manager_cik, manager_name, aliases, current_scope_rank, " +
-      "latest_reportable_value_usd, latest_reportable_value_period } per entry, " +
-      "ordered by current_scope_rank ascending (rank 1 = largest).\n\n" +
-      "INTENDED USE: call this first to derive a fund pool (e.g. top 30) for " +
-      "consensus-holdings / smart-money-aggregate analyses, then call " +
-      "sec_13f_list_manager_holdings once per manager to fan out into holdings.\n\n" +
-      "COVERAGE SCOPE: only the latest seeded quarter carries a ranking. " +
-      "reportable value is an AUM proxy, not true firmwide AUM — it excludes " +
-      "fixed income, options, non-U.S. holdings, and shorts.\n\n" +
-      "This is NOT a semantic search tool. It is parameterized ranked lookup: " +
-      "limit + optional period (YYYY-MM-DD quarter-end). If period differs from " +
-      "the latest seeded ranking quarter, the response is empty with a scope_notice " +
-      "— historical rankings are NOT stored. Do not expect quarter-over-quarter " +
-      "ranking diffs from this tool.",
-    parameters: z.object({
-      limit: sec13fTopManagersLimitSchema
-        .optional()
-        .describe(
-          "Max managers to return, ordered by rank ascending (rank 1 = largest). Default: 30. Max: 1000.",
-        ),
-      period: sec13fPeriodSchema
-        .optional()
-        .describe(
-          'Quarter-end date "YYYY-MM-DD" (e.g. "2025-12-31"). Defaults to the latest seeded ranking quarter; other periods return an empty list with scope_notice.',
-        ),
-    }),
-    execute: async ({ limit, period }) => {
+      "List the top N institutional managers from the SEC Form 13F Top 1000 " +
+      "universe for a given quarter, sorted by that quarter's 13F reportable " +
+      "value descending (rank 1 = largest).\n\n" +
+      "Inputs: optional `limit` (default 30, max 1000); optional `year` + " +
+      "`quarter` paired (must both be set or both omitted; defaults to the " +
+      "universe quarter).\n\n" +
+      "Returns per entry: manager_cik, manager_name, aliases, period_rank, " +
+      "period_reportable_value_usd. Top-level: data.universe_period (the quarter " +
+      "that picked the Top 1000 set; fixed to most recent covered quarter) and " +
+      "data.ranking_period (the quarter the response's ranks/values come from; " +
+      "equals your input or the universe quarter).\n\n" +
+      "Coverage: ranking data is stored for the quarters listed in " +
+      "meta.scope.available_ranking_periods (typically the last 4 covered " +
+      "quarters); a year/quarter outside that list returns empty managers with " +
+      "an explanatory scope_notice. Reportable value is an AUM proxy (excludes " +
+      "fixed income, options, non-U.S. holdings, shorts), not true firmwide AUM.\n\n" +
+      "Not a semantic search. Not a free-text manager filter. Parameterized " +
+      "ranked lookup only.",
+    parameters: z
+      .object({
+        limit: sec13fTopManagersLimitSchema
+          .optional()
+          .describe(
+            "Max managers to return, ordered by period_rank ascending (rank 1 = largest). Default: 30. Max: 1000.",
+          ),
+        year: secYearSchema
+          .optional()
+          .describe(
+            "Calendar year of the quarter to rank (e.g. 2025). Required together with quarter. Omit both for latest seeded quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+          ),
+        quarter: secQuarterSchema
+          .optional()
+          .describe(
+            "Calendar quarter 1-4 (Q1=Jan-Mar, Q4=Oct-Dec). Required together with year.",
+          ),
+      })
+      .refine(
+        (val) => (val.year === undefined) === (val.quarter === undefined),
+        { message: "year and quarter must be provided together." },
+      ),
+    execute: async ({ limit, year, quarter }) => {
       try {
         const response = await api.listTop13FManagers({
           limit: limit ?? 30,
-          period,
+          year,
+          quarter,
         });
 
-        const { managers } = response.data;
-        const { scope } = response.meta;
-        const rankedPeriod = scope.latest_period;
+        const { managers, ranking_period: rankingPeriod, universe_period } =
+          response.data;
 
         let summary: string;
         if (managers.length === 0) {
-          summary = rankedPeriod
-            ? `No ranked managers available for ${period ?? rankedPeriod}. Only the latest seeded ranking quarter (${rankedPeriod}) is stored.`
-            : "No 13F manager ranking available yet — the seed may not have been run.";
+          const requested =
+            year !== undefined && quarter !== undefined
+              ? `${year} Q${quarter}`
+              : "the requested quarter";
+          summary = `No ranked managers available for ${requested}. Universe is locked to ${universe_period ?? "latest seeded quarter"}; available ranking quarters: ${response.meta.scope.available_ranking_periods.join(", ") || "none seeded yet"}.`;
         } else {
-          const periodLabel = rankedPeriod ?? "latest seeded quarter";
           const rank1 = managers[0].manager_name || managers[0].manager_cik;
-          summary = `Top ${formatNumber(managers.length)} smart money managers for ${periodLabel} (rank 1 = ${rank1})`;
+          summary = `Top ${formatNumber(managers.length)} smart money managers for ${rankingPeriod ?? "latest"} (rank 1 = ${rank1}); universe selected from ${universe_period ?? "latest seeded quarter"}.`;
         }
 
         return formatToolResult({

@@ -30,9 +30,11 @@
 - [这是什么](#这是什么)
 - [可用工具](#可用工具)
 - [试一试](#试一试)
+- [一键安装（Prompt）](#一键安装prompt)
 - [接入方式](#接入方式)
 - [环境变量](#环境变量)
 - [路线图](#路线图)
+- [另请参阅](#另请参阅)
 - [贡献](#贡献)
 - [License](#license)
 
@@ -98,6 +100,19 @@ npx @modelcontextprotocol/inspector npx -y @llmquant/data-mcp
 
 > [!TIP]
 > 需要 API key — 在 [llmquantdata.com](https://llmquantdata.com) 免费注册。
+
+## 一键安装（Prompt）
+
+最快的方式：把下面这段 prompt 丢进 Claude Code / Cursor / Codex CLI / Gemini CLI / 任意支持 MCP 的 agent。Agent 会读这份 README 然后按它当前 runtime 的配置跑安装。
+
+```text
+Install the LLMQuant data-mcp server in this environment by following https://github.com/LLMQuant/data-mcp
+```
+
+> [!TIP]
+> 确保 agent 运行的 shell 里已经 `export LLMQUANT_API_KEY=...`。免费 key 在 [llmquantdata.com](https://llmquantdata.com) 注册即得。
+
+更想手动配置？看下面的 [接入方式](#接入方式)。
 
 ## 接入方式
 
@@ -181,6 +196,11 @@ gemini mcp add -s user \
 - [ ] 更多 agent 框架接入指南
 
 有想法？[提 Issue](https://github.com/LLMQuant/data-mcp/issues) 或邮件 **contact@llmquant.com**。
+
+## 另请参阅
+
+- **[Awesome Trading Agents](https://github.com/LLMQuant/awesome-trading-agents)** —— 社区维护的 agent recipe 集合，把 `data-mcp` 工具串成端到端研究工作流（个股研究、宏观简报、smart money 追踪等）。
+- **[文档](https://docs.llmquantdata.com)** —— 完整 API 参考、MCP 接入指南、credit policy。
 
 ## 贡献
 

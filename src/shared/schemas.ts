@@ -116,13 +116,10 @@ export const sec13fManagerNameSchema = z
   .min(1, "manager_name must not be empty.")
   .max(200, "manager_name must be 200 characters or less.");
 
-export const sec13fPeriodSchema = z
-  .string()
-  .trim()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}$/u,
-    "period must be in YYYY-MM-DD format (quarter-end date).",
-  );
+// Note: 13F year/quarter input reuses the SEC-shared schemas above
+// (secYearSchema / secQuarterSchema). 13F-specific narrowing (2013-2030
+// coverage window) is enforced in the web service layer's quarterEndDate
+// helper, not duplicated here.
 
 export const sec13fByManagerLimitSchema = z
   .number()

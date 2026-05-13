@@ -30,9 +30,11 @@ Context engineering meets financial data — structured for agent context, not h
 - [What It Does](#what-it-does)
 - [Available Tools](#available-tools)
 - [Try It Out](#try-it-out)
+- [Quick Install (Prompt)](#quick-install-prompt)
 - [Client Setup](#client-setup)
 - [Environment Variables](#environment-variables)
 - [Roadmap](#roadmap)
+- [See Also](#see-also)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -98,6 +100,19 @@ npx @modelcontextprotocol/inspector npx -y @llmquant/data-mcp
 
 > [!TIP]
 > You'll need an API key — sign up free at [llmquantdata.com](https://llmquantdata.com).
+
+## Quick Install (Prompt)
+
+The fastest way: drop this prompt into Claude Code, Cursor, Codex CLI, Gemini CLI, or any MCP-enabled agent. The agent will read this README and run the right setup for its runtime.
+
+```text
+Install the LLMQuant data-mcp server in this environment by following https://github.com/LLMQuant/data-mcp
+```
+
+> [!TIP]
+> Make sure `LLMQUANT_API_KEY` is exported in the shell where the agent runs. Get a key at [llmquantdata.com](https://llmquantdata.com).
+
+Prefer to set it up by hand? See [Client Setup](#client-setup) below.
 
 ## Client Setup
 
@@ -181,6 +196,11 @@ Any client supporting stdio transport can use this JSON config:
 - [ ] Integration guides for more agent frameworks
 
 Have a feature request? [Open an issue](https://github.com/LLMQuant/data-mcp/issues) or email us at **contact@llmquant.com**.
+
+## See Also
+
+- **[Awesome Trading Agents](https://github.com/LLMQuant/awesome-trading-agents)** — community-curated agent recipes that turn `data-mcp` tools into end-to-end research workflows (equity research, macro briefings, smart-money digests).
+- **[Documentation](https://docs.llmquantdata.com)** — full API reference, MCP setup guides, and credit policy.
 
 ## Contributing
 
