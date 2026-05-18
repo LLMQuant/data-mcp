@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
@@ -17,8 +17,8 @@ function formatNumber(value: number): string {
 }
 
 export function registerSec13fByManagerTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "sec_13f_list_manager_holdings",
@@ -61,7 +61,7 @@ export function registerSec13fByManagerTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for the manager's latest seeded quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for the manager's latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
           ),
         quarter: secQuarterSchema
           .optional()
@@ -76,14 +76,14 @@ export function registerSec13fByManagerTool(
         (val) => (val.year === undefined) === (val.quarter === undefined),
         { message: "year and quarter must be provided together." },
       ),
-    execute: async ({ manager_cik, manager_name, year, quarter, limit }) => {
+    execute: async ({ manager_cik, manager_name, year, quarter, limit }, context) => {
       if (!manager_cik && !manager_name) {
         throw new Error(
           "At least one of manager_cik or manager_name must be provided.",
         );
       }
       try {
-        const response = await api.getSec13fByManager({
+        const response = await getApiClient(api, context).getSec13fByManager({
           managerCik: manager_cik,
           managerName: manager_name,
           year,
@@ -95,7 +95,7 @@ export function registerSec13fByManagerTool(
         const summary = filing
           ? `${manager?.manager_name ?? manager?.manager_cik ?? "manager"} ${filing.period_of_report}: ${formatNumber(holdings.length)} holdings, reportable value $${formatNumber(Math.round(Number(filing.table_value_total ?? 0)))}`
           : manager && !manager.is_in_latest_seed_universe
-            ? `Manager ${manager.manager_cik} is outside the seeded Top 1000 scope.`
+            ? `Manager ${manager.manager_cik} is outside the covered Top 1,000 scope.`
             : "No 13F filings available for this manager/quarter.";
 
         return formatToolResult({

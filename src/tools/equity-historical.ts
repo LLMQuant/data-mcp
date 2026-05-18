@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { equityTickerSchema, equityLimitSchema } from "../shared/schemas";
 
 export function registerEquityHistoricalTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "equity_historical_prices",
@@ -41,9 +41,9 @@ export function registerEquityHistoricalTool(
           "Default: 30. Max: 200.",
         ),
     }),
-    execute: async ({ ticker, start_date, end_date, limit }) => {
+    execute: async ({ ticker, start_date, end_date, limit }, context) => {
       try {
-        const response = await api.getEquityHistorical({
+        const response = await getApiClient(api, context).getEquityHistorical({
           ticker,
           startDate: start_date,
           endDate: end_date,

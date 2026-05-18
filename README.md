@@ -32,6 +32,7 @@ Context engineering meets financial data — structured for agent context, not h
 - [Try It Out](#try-it-out)
 - [Quick Install (Prompt)](#quick-install-prompt)
 - [Client Setup](#client-setup)
+- [Remote / Hosted MCP](#remote--hosted-mcp)
 - [Environment Variables](#environment-variables)
 - [Roadmap](#roadmap)
 - [See Also](#see-also)
@@ -73,8 +74,8 @@ Configure once — every agent in your stack gets the data.
 | `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × last 4 quarters) | 1 |
 | `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × last 4 quarters) | 1 |
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
-| `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (allowlisted SEC-first universe) | 0 |
-| `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (allowlisted SEC-first universe) | 1* |
+| `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently covered SEC-backed universe) | 0 |
+| `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently covered SEC-backed universe) | 1* |
 
 > More data products (news, company fundamentals, earnings transcripts, etc.) are on the [roadmap](#roadmap).
 
@@ -182,17 +183,35 @@ Any client supporting stdio transport can use this JSON config:
 > [!NOTE]
 > We're working on integration guides for more clients. If your agent framework isn't listed, [open an issue](https://github.com/LLMQuant/data-mcp/issues) and we'll add it.
 
+## Remote / Hosted MCP
+
+`@llmquant/data-mcp` keeps local `stdio` as the default setup path. Some LLMQuant accounts can also use a hosted Remote MCP connector URL from the LLMQuant dashboard. Hosted connectors are useful when your MCP client supports remote connectors and you do not want to run a local Node.js process.
+
+### Claude custom connectors
+
+In the LLMQuant dashboard, open **Connect** and generate a Remote MCP URL.
+
+```text
+https://mcp.llmquantdata.com/u/lqd_mcp_.../mcp
+```
+
+Paste the full URL into Claude's custom connector flow. The hosted URL is separate from your local `LLMQUANT_API_KEY` and can be revoked from the dashboard.
+
+> [!IMPORTANT]
+> Treat the hosted connector URL like a password. Anyone with the URL can use the connector until you revoke it.
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LLMQUANT_API_KEY` | Yes | — | Your API key |
+| `LLMQUANT_API_KEY` | Yes for stdio | — | User API key for local stdio mode |
 | `LLMQUANT_BASE_URL` | No | `https://api.llmquantdata.com` | API base URL |
 | `LLMQUANT_API_TIMEOUT_MS` | No | `15000` | Request timeout in ms (max 120000) |
 
 ## Roadmap
 
-- [ ] Streamable HTTP transport (remote MCP without local Node.js)
+- [x] Streamable HTTP transport (remote MCP without local Node.js)
+- [ ] OAuth connector flow for Claude Connectors Directory
 - [ ] More data products — news, company fundamentals, earnings transcripts
 - [ ] Agent skills companion package (**llmquantdata-skills**)
 - [ ] Integration guides for more agent frameworks

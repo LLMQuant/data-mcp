@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
@@ -15,8 +15,8 @@ function formatNumber(value: number): string {
 }
 
 export function registerSec13fListTopManagersTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "sec_13f_list_top_managers",
@@ -49,7 +49,7 @@ export function registerSec13fListTopManagersTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to rank (e.g. 2025). Required together with quarter. Omit both for latest seeded quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to rank (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
           ),
         quarter: secQuarterSchema
           .optional()
@@ -61,9 +61,9 @@ export function registerSec13fListTopManagersTool(
         (val) => (val.year === undefined) === (val.quarter === undefined),
         { message: "year and quarter must be provided together." },
       ),
-    execute: async ({ limit, year, quarter }) => {
+    execute: async ({ limit, year, quarter }, context) => {
       try {
-        const response = await api.listTop13FManagers({
+        const response = await getApiClient(api, context).listTop13FManagers({
           limit: limit ?? 30,
           year,
           quarter,
@@ -78,10 +78,10 @@ export function registerSec13fListTopManagersTool(
             year !== undefined && quarter !== undefined
               ? `${year} Q${quarter}`
               : "the requested quarter";
-          summary = `No ranked managers available for ${requested}. Universe is locked to ${universe_period ?? "latest seeded quarter"}; available ranking quarters: ${response.meta.scope.available_ranking_periods.join(", ") || "none seeded yet"}.`;
+          summary = `No ranked managers available for ${requested}. Universe is locked to ${universe_period ?? "latest covered quarter"}; available ranking quarters: ${response.meta.scope.available_ranking_periods.join(", ") || "none covered yet"}.`;
         } else {
           const rank1 = managers[0].manager_name || managers[0].manager_cik;
-          summary = `Top ${formatNumber(managers.length)} smart money managers for ${rankingPeriod ?? "latest"} (rank 1 = ${rank1}); universe selected from ${universe_period ?? "latest seeded quarter"}.`;
+          summary = `Top ${formatNumber(managers.length)} smart money managers for ${rankingPeriod ?? "latest"} (rank 1 = ${rank1}); universe selected from ${universe_period ?? "latest covered quarter"}.`;
         }
 
         return formatToolResult({

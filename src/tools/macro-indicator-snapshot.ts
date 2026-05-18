@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { macroIndicatorSchema } from "../shared/schemas";
 
 export function registerMacroIndicatorSnapshotTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "macro_indicator_snapshot",
@@ -30,9 +30,9 @@ export function registerMacroIndicatorSnapshotTool(
           'FRED series ID (e.g. "UNRATE"). Use this OR indicator. Must be in the allowlist.',
         ),
     }),
-    execute: async ({ indicator, series_id }) => {
+    execute: async ({ indicator, series_id }, context) => {
       try {
-        const response = await api.getMacroSnapshot({
+        const response = await getApiClient(api, context).getMacroSnapshot({
           indicator,
           seriesId: series_id,
         });

@@ -2,24 +2,10 @@ import { createRequire } from "node:module";
 import { FastMCP } from "fastmcp";
 
 import type { LlmquantEnv } from "./env";
-import { LlmquantWebApiClient } from "./client/web-api";
-import { registerCryptoHistoricalTool } from "./tools/crypto-historical";
-import { registerCryptoSnapshotTool } from "./tools/crypto-snapshot";
-import { registerEquityHistoricalTool } from "./tools/equity-historical";
-import { registerEtfHoldingsTool } from "./tools/etf-holdings";
-import { registerEtfLookupTool } from "./tools/etf-lookup";
-import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-history";
-import { registerMacroIndicatorSearchTool } from "./tools/macro-indicator-search";
-import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snapshot";
-import { registerReadPaperTool } from "./tools/read-paper";
-import { registerSec13fByManagerTool } from "./tools/sec-13f-by-manager";
-import { registerSec13fByTickerTool } from "./tools/sec-13f-by-ticker";
-import { registerSec13fListTopManagersTool } from "./tools/sec-13f-list-top-managers";
-import { registerSecFilingBrowseTool } from "./tools/sec-filing-browse";
-import { registerSecFilingReadTool } from "./tools/sec-filing-read";
-import { registerReadWikiTool } from "./tools/read-wiki";
-import { registerSearchPaperTool } from "./tools/search-paper";
-import { registerSearchWikiTool } from "./tools/search-wiki";
+import { LlmquantApiClientProvider } from "./client/api-provider";
+import { registerLlmquantDataTools } from "./register-tools";
+import { resolvePrincipal } from "./remote/principal";
+import type { McpToolRegistry } from "./tools/registry";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as {
@@ -28,29 +14,15 @@ const { version } = require("../package.json") as {
 
 export function createServer(env: LlmquantEnv) {
   const server = new FastMCP({
+    ...(env.transport === "httpStream"
+      ? { authenticate: (request) => resolvePrincipal(env, request) }
+      : {}),
     name: "LLMQuant Data",
     version,
   });
 
-  const api = new LlmquantWebApiClient(env);
-
-  registerSearchWikiTool(server, api);
-  registerReadWikiTool(server, api);
-  registerSearchPaperTool(server, api);
-  registerReadPaperTool(server, api);
-  registerCryptoHistoricalTool(server, api);
-  registerCryptoSnapshotTool(server, api);
-  registerEquityHistoricalTool(server, api);
-  registerMacroIndicatorSearchTool(server, api);
-  registerMacroIndicatorHistoryTool(server, api);
-  registerMacroIndicatorSnapshotTool(server, api);
-  registerSecFilingBrowseTool(server, api);
-  registerSecFilingReadTool(server, api);
-  registerSec13fByManagerTool(server, api);
-  registerSec13fByTickerTool(server, api);
-  registerSec13fListTopManagersTool(server, api);
-  registerEtfLookupTool(server, api);
-  registerEtfHoldingsTool(server, api);
+  const api = new LlmquantApiClientProvider(env);
+  registerLlmquantDataTools(server as unknown as McpToolRegistry, api);
 
   return server;
 }

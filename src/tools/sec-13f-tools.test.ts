@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 
 import { registerSec13fByManagerTool } from "./sec-13f-by-manager";
 import { registerSec13fByTickerTool } from "./sec-13f-by-ticker";
@@ -14,7 +14,7 @@ function createToolHarness() {
       addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
         tools.set(tool.name, tool);
       },
-    } as unknown as FastMCP,
+    } as McpToolRegistry,
     get(name: string) {
       const tool = tools.get(name);
 
@@ -172,7 +172,7 @@ test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit 
           creditsUsed: 1,
           remainingCredits: 99,
           scope: SCOPE,
-          scope_notice: `${SAMPLE_SCOPE_NOTICE} Manager is outside the seeded Top 1000 scope.`,
+          scope_notice: `${SAMPLE_SCOPE_NOTICE} Manager is outside the covered Top 1,000 scope.`,
         },
       };
     },
@@ -185,7 +185,7 @@ test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit 
     }),
   ) as { summary: string; item: { holdings: unknown[] } };
 
-  assert.match(payload.summary, /outside the seeded Top 1000 scope/);
+  assert.match(payload.summary, /outside the covered Top 1,000 scope/);
   assert.equal(payload.item.holdings.length, 0);
 });
 
@@ -410,7 +410,7 @@ test("sec_13f_list_top_managers surfaces empty out-of-window result", async () =
           creditsUsed: 1,
           remainingCredits: 99,
           scope: SCOPE,
-          scope_notice: `${SAMPLE_SCOPE_NOTICE} Period 2024-06-30 has no stored ranking; available: 4 quarters: 2025-03-31 … 2025-12-31.`,
+          scope_notice: `${SAMPLE_SCOPE_NOTICE} Period 2024-06-30 has no ranking data; available: 4 quarters: 2025-03-31 … 2025-12-31.`,
         },
       };
     },
@@ -451,7 +451,7 @@ test("sec_13f_list_top_managers handles fully empty universe (seed not run)", as
           creditsUsed: 1,
           remainingCredits: 99,
           scope: emptyScope,
-          scope_notice: "13F coverage: Top 1,000 managers selected from quarter n/a. Ranking data available for no quarters seeded yet.",
+          scope_notice: "13F coverage: Top 1,000 managers selected from quarter n/a. Ranking data available for no covered quarters yet.",
         },
       };
     },
@@ -463,5 +463,5 @@ test("sec_13f_list_top_managers handles fully empty universe (seed not run)", as
   ) as { summary: string };
 
   assert.match(payload.summary, /No ranked managers available/);
-  assert.match(payload.summary, /none seeded yet/);
+  assert.match(payload.summary, /none covered yet/);
 });

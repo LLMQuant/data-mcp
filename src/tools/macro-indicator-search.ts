@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { macroCatalogLimitSchema } from "../shared/schemas";
 
 export function registerMacroIndicatorSearchTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "macro_indicator_search",
@@ -42,9 +42,9 @@ export function registerMacroIndicatorSearchTool(
         .optional()
         .describe("Max results. Default: 20. Max: 100."),
     }),
-    execute: async ({ q, category, frequency, limit }) => {
+    execute: async ({ q, category, frequency, limit }, context) => {
       try {
-        const response = await api.getMacroIndicators({
+        const response = await getApiClient(api, context).getMacroIndicators({
           q,
           category,
           frequency,

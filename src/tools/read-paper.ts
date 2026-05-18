@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { paperCardIdSchema, paperSectionsSchema } from "../shared/schemas";
@@ -11,8 +11,8 @@ function countChars(sections: { charCount: number }[]) {
 }
 
 export function registerReadPaperTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "paper_read",
@@ -29,12 +29,12 @@ export function registerReadPaperTool(
         .optional()
         .default(["all"]),
     }),
-    execute: async ({ paperCardId, sections }) => {
+    execute: async ({ paperCardId, sections }, context) => {
       try {
         const requestedAll = sections.some(
           (section) => section.toLowerCase() === "all",
         );
-        const response = await api.readPaper({
+        const response = await getApiClient(api, context).readPaper({
           paperCardId,
           sections: requestedAll ? undefined : sections,
         });
@@ -47,7 +47,8 @@ export function registerReadPaperTool(
           meta: {
             paperCardId,
             requestedSections: requestedAll ? ["all"] : sections,
-            creditsUsed: 0,
+            creditsUsed: response.meta.creditsUsed,
+            remainingCredits: response.meta.remainingCredits,
             returnedSectionCount: item.sections.length,
             returnedCharCount,
             availableSectionCount: item.availableSections.length,

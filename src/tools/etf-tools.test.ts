@@ -1,19 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 
 import { registerEtfHoldingsTool } from "./etf-holdings";
 import { registerEtfLookupTool } from "./etf-lookup";
 
 function createToolHarness() {
-  const tools = new Map<string, { execute: (input: unknown) => Promise<string> }>();
+  const tools = new Map<
+    string,
+    { description: string; execute: (input: unknown) => Promise<string> }
+  >();
 
   return {
     server: {
-      addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
+      addTool(tool: {
+        name: string;
+        description: string;
+        execute: (input: unknown) => Promise<string>;
+      }) {
         tools.set(tool.name, tool);
       },
-    } as unknown as FastMCP,
+    } as McpToolRegistry,
     get(name: string) {
       const tool = tools.get(name);
       if (!tool) {
@@ -146,6 +153,26 @@ const FULL_HOLDINGS = {
   },
 };
 
+test("etf tool descriptions do not expose internal coverage planning labels", () => {
+  const harness = createToolHarness();
+  const api = {} as never;
+  registerEtfLookupTool(harness.server, api);
+  registerEtfHoldingsTool(harness.server, api);
+
+  const forbidden = new RegExp(
+    [
+      ["SEC-first", "MVP"].join(" "),
+      ["ETF", "MVP"].join(" "),
+      ["MVP", "seed", "allowlist"].join(" "),
+      ["seed", "allowlist"].join(" "),
+      ["issuer", "adapter"].join(" "),
+    ].join("|"),
+    "i",
+  );
+  assert.doesNotMatch(harness.get("etf_lookup").description, forbidden);
+  assert.doesNotMatch(harness.get("etf_holdings").description, forbidden);
+});
+
 test("etf_lookup forwards the ticker and passes data/meta through unchanged", async () => {
   const harness = createToolHarness();
   const captured: { args: Record<string, unknown> | null } = { args: null };
@@ -171,6 +198,22 @@ test("etf_lookup forwards the ticker and passes data/meta through unchanged", as
   assert.equal(parsed.meta.creditsUsed, 0);
   assert.match(parsed.summary, /VTI/);
   assert.match(parsed.summary, /full/);
+});
+
+test("etf_lookup forwards optional as_of as web-api asOf", async () => {
+  const harness = createToolHarness();
+  const captured: { args: Record<string, unknown> | null } = { args: null };
+  const api = {
+    async getEtfLookup(args: Record<string, unknown>) {
+      captured.args = args;
+      return FULL_LOOKUP;
+    },
+  } as never;
+
+  registerEtfLookupTool(harness.server, api);
+  await harness.get("etf_lookup").execute({ ticker: "VTI", as_of: "2025-12-31" });
+
+  assert.deepEqual(captured.args, { ticker: "VTI", asOf: "2025-12-31" });
 });
 
 test("etf_lookup surfaces a clear summary on coverage_status=unsupported", async () => {
@@ -226,6 +269,28 @@ test("etf_holdings forwards ticker + limit and passes data/meta through", async 
   assert.equal(parsed.meta.creditsUsed, 1);
 });
 
+test("etf_holdings forwards optional as_of as web-api asOf", async () => {
+  const harness = createToolHarness();
+  const captured: { args: Record<string, unknown> | null } = { args: null };
+  const api = {
+    async getEtfHoldings(args: Record<string, unknown>) {
+      captured.args = args;
+      return FULL_HOLDINGS;
+    },
+  } as never;
+  registerEtfHoldingsTool(harness.server, api);
+
+  await harness
+    .get("etf_holdings")
+    .execute({ ticker: "VTI", limit: 10, as_of: "2025-12-31" });
+
+  assert.deepEqual(captured.args, {
+    ticker: "VTI",
+    limit: 10,
+    asOf: "2025-12-31",
+  });
+});
+
 test("etf_holdings unsupported path surfaces coverage_status and zero credits", async () => {
   const harness = createToolHarness();
   const unsupported = {
@@ -240,7 +305,7 @@ test("etf_holdings unsupported path surfaces coverage_status and zero credits", 
       fetched_at: null,
       stale: false,
       coverage_status: "unsupported" as const,
-      coverage_notice: "DRAM is not in the seed allowlist.",
+      coverage_notice: "DRAM is not in current ETF coverage.",
     },
     meta: { count: 0, limit: 50, creditsUsed: 0, remainingCredits: 7 },
   };

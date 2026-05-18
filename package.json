@@ -1,10 +1,10 @@
 {
   "name": "@llmquant/data-mcp",
-  "version": "0.2.4",
+  "version": "0.3.1",
   "description": "LLMQuant Data MCP server — wiki, paper, crypto, equity, macro, and SEC filing tools for AI agents.",
   "type": "module",
   "bin": {
-    "llmquant-data-mcp": "./dist/index.js"
+    "llmquant-data-mcp": "dist/index.js"
   },
   "files": [
     "dist"
@@ -24,7 +24,10 @@
     "prepare:publish": "node scripts/prepare-publish.mjs",
     "start": "node dist/index.js",
     "e2e": "node e2e/run-smoke.mjs",
-    "test": "node --import tsx --test src/**/*.test.ts",
+    "e2e:remote": "node e2e/run-remote-smoke.mjs",
+    "e2e:remote:acceptance": "node e2e/run-remote-acceptance.mjs",
+    "e2e:remote:prepare": "node e2e/prepare-remote-smoke-urls.mjs",
+    "test": "node --import tsx --test src/*.test.ts src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "publish:pkg": "bash scripts/publish.sh"
@@ -34,6 +37,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@ai-sdk/mcp": "^1.0.42",
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.58.1",

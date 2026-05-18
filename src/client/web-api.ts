@@ -1,8 +1,26 @@
-import type { LlmquantEnv } from "../env";
 import {
   LlmquantTransportError,
   toLlmquantApiError,
 } from "../shared/errors";
+
+export interface LlmquantWebApiInternalAuth {
+  secret: string;
+  userId: string;
+  clientType: string;
+  mcpTokenId?: string;
+}
+
+export interface LlmquantWebApiClientOptions {
+  apiKey?: string;
+  baseUrl: string;
+  timeoutMs: number;
+  internalAuth?: LlmquantWebApiInternalAuth;
+}
+
+interface CreditMeta {
+  remainingCredits?: number;
+  creditsUsed?: number;
+}
 
 interface SearchWikiApiResult {
   wiki_item_id: string;
@@ -40,6 +58,7 @@ interface ReadWikiApiResult {
 
 interface ReadWikiApiResponse {
   data: ReadWikiApiResult;
+  meta?: CreditMeta;
 }
 
 interface PaperSectionManifestApiResult {
@@ -104,6 +123,7 @@ interface ReadPaperApiResult {
 
 interface ReadPaperApiResponse {
   data: ReadPaperApiResult;
+  meta?: CreditMeta;
 }
 
 export interface WikiSearchResult {
@@ -142,6 +162,10 @@ export interface WikiItem {
 
 export interface WikiReadResponse {
   data: WikiItem;
+  meta: {
+    remainingCredits: number | null;
+    creditsUsed: number;
+  };
 }
 
 export interface PaperSectionManifest {
@@ -206,6 +230,10 @@ export interface PaperItem {
 
 export interface PaperReadResponse {
   data: PaperItem;
+  meta: {
+    remainingCredits: number | null;
+    creditsUsed: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -578,6 +606,17 @@ function mapPaperSectionManifest(item: PaperSectionManifestApiResult): PaperSect
   };
 }
 
+function readZeroCreditMeta(meta: CreditMeta | undefined) {
+  return {
+    creditsUsed:
+      typeof meta?.creditsUsed === "number" ? meta.creditsUsed : 0,
+    remainingCredits:
+      typeof meta?.remainingCredits === "number"
+        ? meta.remainingCredits
+        : null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // SEC 13F types
 // ---------------------------------------------------------------------------
@@ -805,7 +844,7 @@ export interface Sec13fTopManagersResponse {
 }
 
 export class LlmquantWebApiClient {
-  constructor(private readonly env: LlmquantEnv) {}
+  constructor(private readonly env: LlmquantWebApiClientOptions) {}
 
   async searchWiki({
     query,
@@ -868,6 +907,7 @@ export class LlmquantWebApiClient {
         createdAt: response.data.created_at,
         updatedAt: response.data.updated_at,
       },
+      meta: readZeroCreditMeta(response.meta),
     };
   }
 
@@ -945,6 +985,7 @@ export class LlmquantWebApiClient {
           charCount: item.char_count,
         })),
       },
+      meta: readZeroCreditMeta(response.meta),
     };
   }
 
@@ -1308,9 +1349,15 @@ export class LlmquantWebApiClient {
     return { data: response.data, meta: response.meta };
   }
 
-  async getEtfLookup(params: { ticker: string }): Promise<EtfLookupResponse> {
+  async getEtfLookup(params: {
+    ticker: string;
+    asOf?: string;
+  }): Promise<EtfLookupResponse> {
     const url = new URL("/api/etf/lookup", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
+    if (params.asOf != null) {
+      url.searchParams.set("as_of", params.asOf);
+    }
 
     const response = await this.request<EtfLookupApiResponse>(url, {
       method: "GET",
@@ -1321,11 +1368,15 @@ export class LlmquantWebApiClient {
   async getEtfHoldings(params: {
     ticker: string;
     limit?: number;
+    asOf?: string;
   }): Promise<EtfHoldingsResponse> {
     const url = new URL("/api/etf/holdings", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.asOf != null) {
+      url.searchParams.set("as_of", params.asOf);
     }
 
     const response = await this.request<EtfHoldingsApiResponse>(url, {
@@ -1342,7 +1393,23 @@ export class LlmquantWebApiClient {
 
     const headers = new Headers(init.headers);
     headers.set("accept", "application/json");
-    headers.set("authorization", `Bearer ${this.env.apiKey}`);
+
+    if (this.env.internalAuth) {
+      headers.set("authorization", `Bearer ${this.env.internalAuth.secret}`);
+      headers.set("x-llmquant-user-id", this.env.internalAuth.userId);
+      headers.set("x-llmquant-client-type", this.env.internalAuth.clientType);
+
+      if (this.env.internalAuth.mcpTokenId) {
+        headers.set("x-llmquant-mcp-token-id", this.env.internalAuth.mcpTokenId);
+      }
+    } else if (this.env.apiKey) {
+      headers.set("authorization", `Bearer ${this.env.apiKey}`);
+    } else {
+      throw new LlmquantTransportError(
+        "LLMQuant API credentials are missing.",
+        url.toString(),
+      );
+    }
 
     if (init.body && !headers.has("content-type")) {
       headers.set("content-type", "application/json");

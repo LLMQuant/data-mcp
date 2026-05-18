@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { tickerSchema } from "../shared/schemas";
@@ -21,8 +21,8 @@ function formatPercent(value: number) {
 }
 
 export function registerCryptoSnapshotTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "crypto_snapshot",
@@ -33,9 +33,9 @@ export function registerCryptoSnapshotTool(
         'Crypto ticker in BASE-QUOTE format (e.g. "BTC-USD", "ETH-USD").',
       ),
     }),
-    execute: async ({ ticker }) => {
+    execute: async ({ ticker }, context) => {
       try {
-        const response = await api.getCryptoSnapshot({ ticker });
+        const response = await getApiClient(api, context).getCryptoSnapshot({ ticker });
         const d = response.data;
 
         const summary = `${d.ticker} current price ${formatPrice(d.price)}, 24h ${formatPercent(d.dayChangePercent)}`;

@@ -1,11 +1,39 @@
 import { ZodError } from "zod";
 
 import { getEnv } from "./env";
+import { startPathTokenProxy } from "./remote/path-token-proxy";
 import { createServer } from "./server";
 
 async function main() {
   const env = getEnv();
   const server = createServer(env);
+
+  if (env.transport === "httpStream") {
+    if (env.enablePathTokenProxy) {
+      await server.start({
+        transportType: "httpStream",
+        httpStream: {
+          endpoint: env.mcpEndpoint,
+          host: "127.0.0.1",
+          port: env.mcpInternalPort,
+          stateless: true,
+        },
+      });
+      startPathTokenProxy(env);
+      return;
+    }
+
+    await server.start({
+      transportType: "httpStream",
+      httpStream: {
+        endpoint: env.mcpEndpoint,
+        host: env.mcpHost,
+        port: env.mcpPort,
+        stateless: true,
+      },
+    });
+    return;
+  }
 
   await server.start({
     transportType: "stdio",

@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
@@ -11,8 +11,8 @@ import {
 } from "../shared/schemas";
 
 export function registerSecFilingBrowseTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "sec_filing_browse",
@@ -31,9 +31,9 @@ export function registerSecFilingBrowseTool(
         .optional()
         .describe("Maximum filings to return. Default: 10. Max: 50."),
     }),
-    execute: async ({ ticker, filing_type, limit }) => {
+    execute: async ({ ticker, filing_type, limit }, context) => {
       try {
-        const response = await api.getSecFilingBrowse({
+        const response = await getApiClient(api, context).getSecFilingBrowse({
           ticker,
           filingType: filing_type,
           limit,

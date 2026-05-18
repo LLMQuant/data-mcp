@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 
 import { registerCryptoHistoricalTool } from "./crypto-historical";
 import { registerCryptoSnapshotTool } from "./crypto-snapshot";
@@ -13,7 +13,7 @@ function createToolHarness() {
       addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
         tools.set(tool.name, tool);
       },
-    } as unknown as FastMCP,
+    } as McpToolRegistry,
     get(name: string) {
       const tool = tools.get(name);
 

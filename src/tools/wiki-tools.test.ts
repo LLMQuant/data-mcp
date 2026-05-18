@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 
 import { LlmquantApiError } from "../shared/errors";
 import { registerSearchWikiTool } from "./search-wiki";
@@ -14,7 +14,7 @@ function createToolHarness() {
       addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
         tools.set(tool.name, tool);
       },
-    } as unknown as FastMCP,
+    } as McpToolRegistry,
     get(name: string) {
       const tool = tools.get(name);
 
@@ -138,6 +138,10 @@ test("wiki_read returns item with truncation metadata", async () => {
           createdAt: "2026-03-01T00:00:00Z",
           updatedAt: "2026-03-15T00:00:00Z",
         },
+        meta: {
+          creditsUsed: 0,
+          remainingCredits: 42,
+        },
       };
     },
   };
@@ -155,6 +159,7 @@ test("wiki_read returns item with truncation metadata", async () => {
     item: { bodyMarkdown: string };
     meta: {
       creditsUsed: number;
+      remainingCredits: number;
       returnedBodyLength: number;
       possiblyTruncated: boolean;
       requestedMaxLength: number | null;
@@ -163,6 +168,7 @@ test("wiki_read returns item with truncation metadata", async () => {
 
   assert.match(payload.summary, /Black-Scholes Model/);
   assert.equal(payload.meta.creditsUsed, 0);
+  assert.equal(payload.meta.remainingCredits, 42);
   assert.equal(payload.meta.returnedBodyLength, 20);
   assert.equal(payload.meta.possiblyTruncated, true);
   assert.equal(payload.meta.requestedMaxLength, 20);
@@ -186,6 +192,10 @@ test("wiki_read reports possiblyTruncated=false when maxLength is not set", asyn
           createdAt: "2026-03-01T00:00:00Z",
           updatedAt: "2026-03-01T00:00:00Z",
         },
+        meta: {
+          creditsUsed: 0,
+          remainingCredits: 41,
+        },
       };
     },
   };
@@ -196,9 +206,14 @@ test("wiki_read reports possiblyTruncated=false when maxLength is not set", asyn
       wikiItemId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
     }),
   ) as {
-    meta: { possiblyTruncated: boolean; requestedMaxLength: number | null };
+    meta: {
+      possiblyTruncated: boolean;
+      requestedMaxLength: number | null;
+      remainingCredits: number;
+    };
   };
 
   assert.equal(payload.meta.possiblyTruncated, false);
   assert.equal(payload.meta.requestedMaxLength, null);
+  assert.equal(payload.meta.remainingCredits, 41);
 });

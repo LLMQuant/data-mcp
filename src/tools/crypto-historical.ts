@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { tickerSchema, intervalSchema, cryptoLimitSchema } from "../shared/schemas";
 
 export function registerCryptoHistoricalTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "crypto_historical_klines",
@@ -43,9 +43,9 @@ export function registerCryptoHistoricalTool(
           "Defaults by interval: 1h=24, 4h=42, 1d=30, 1w=12. Max 200.",
         ),
     }),
-    execute: async ({ ticker, interval, start_time, end_time, limit }) => {
+    execute: async ({ ticker, interval, start_time, end_time, limit }, context) => {
       try {
-        const response = await api.getCryptoHistorical({
+        const response = await getApiClient(api, context).getCryptoHistorical({
           ticker,
           interval,
           startTime: start_time,

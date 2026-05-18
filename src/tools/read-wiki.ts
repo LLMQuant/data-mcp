@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { maxLengthSchema, wikiItemIdSchema } from "../shared/schemas";
 
 export function registerReadWikiTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "wiki_read",
@@ -24,9 +24,9 @@ export function registerReadWikiTool(
         )
         .optional(),
     }),
-    execute: async ({ wikiItemId, maxLength }) => {
+    execute: async ({ wikiItemId, maxLength }, context) => {
       try {
-        const response = await api.readWikiItem({ wikiItemId, maxLength });
+        const response = await getApiClient(api, context).readWikiItem({ wikiItemId, maxLength });
         const item = response.data;
         const returnedBodyLength = item.bodyMarkdown?.length ?? 0;
 
@@ -36,7 +36,8 @@ export function registerReadWikiTool(
           meta: {
             wikiItemId,
             requestedMaxLength: maxLength ?? null,
-            creditsUsed: 0,
+            creditsUsed: response.meta.creditsUsed,
+            remainingCredits: response.meta.remainingCredits,
             returnedBodyLength,
             possiblyTruncated:
               maxLength != null && returnedBodyLength >= maxLength,

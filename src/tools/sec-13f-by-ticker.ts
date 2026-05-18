@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
@@ -16,8 +16,8 @@ function formatNumber(value: number): string {
 }
 
 export function registerSec13fByTickerTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "sec_13f_list_ticker_holders",
@@ -49,7 +49,7 @@ export function registerSec13fByTickerTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for latest seeded quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
           ),
         quarter: secQuarterSchema
           .optional()
@@ -64,9 +64,9 @@ export function registerSec13fByTickerTool(
         (val) => (val.year === undefined) === (val.quarter === undefined),
         { message: "year and quarter must be provided together." },
       ),
-    execute: async ({ ticker, year, quarter, limit }) => {
+    execute: async ({ ticker, year, quarter, limit }, context) => {
       try {
-        const response = await api.getSec13fByTicker({
+        const response = await getApiClient(api, context).getSec13fByTicker({
           ticker,
           year,
           quarter,

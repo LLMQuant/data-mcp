@@ -163,3 +163,12 @@ export const etfHoldingsLimitSchema = z
   .int()
   .min(1, "limit must be at least 1.")
   .max(500, "limit must be 500 or less.");
+
+export const asOfDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, "as_of must be in YYYY-MM-DD format.")
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "as_of must be a valid calendar date.");

@@ -1,14 +1,14 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { macroIndicatorSchema, macroLimitSchema } from "../shared/schemas";
 
 export function registerMacroIndicatorHistoryTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "macro_indicator_history",
@@ -50,9 +50,9 @@ export function registerMacroIndicatorHistoryTool(
           "Default: 60. Max: 500.",
         ),
     }),
-    execute: async ({ indicator, series_id, start_date, end_date, limit }) => {
+    execute: async ({ indicator, series_id, start_date, end_date, limit }, context) => {
       try {
-        const response = await api.getMacroHistorical({
+        const response = await getApiClient(api, context).getMacroHistorical({
           indicator,
           seriesId: series_id,
           startDate: start_date,

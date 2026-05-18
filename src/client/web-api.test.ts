@@ -75,6 +75,7 @@ test("searchPaper posts to the paper search route and maps snake_case fields", a
 
     const headers = new Headers(calls[0]?.init?.headers);
     assert.equal(headers.get("authorization"), "Bearer test-api-key");
+    assert.equal(response.meta.topK, 3);
     assert.equal(response.meta.remainingCredits, 41);
     assert.deepEqual(response.data[0], {
       paperCardId: "11111111-1111-1111-1111-111111111111",
@@ -150,6 +151,7 @@ test("searchWiki posts to the wiki search route and maps snake_case fields", asy
     assert.equal(response.data[0]?.wikiItemId, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     assert.equal(response.data[0]?.slug, "black-scholes");
     assert.equal(response.data[0]?.semanticScore, 0.912);
+    assert.equal(response.meta.topK, 5);
     assert.equal(response.meta.creditsUsed, 1);
   } finally {
     globalThis.fetch = originalFetch;
@@ -177,6 +179,10 @@ test("readWikiItem builds URL with maxLength query parameter", async () => {
         created_at: "2026-03-01T00:00:00Z",
         updated_at: "2026-03-15T00:00:00Z",
       },
+      meta: {
+        creditsUsed: 0,
+        remainingCredits: 42,
+      },
     });
   }) as typeof fetch;
 
@@ -194,6 +200,42 @@ test("readWikiItem builds URL with maxLength query parameter", async () => {
     assert.equal(response.data.bodyMarkdown, "# Black-Scholes");
     assert.deepEqual(response.data.aliases, ["BS model"]);
     assert.deepEqual(response.data.relatedConcepts, ["implied-volatility"]);
+    assert.equal(response.meta.creditsUsed, 0);
+    assert.equal(response.meta.remainingCredits, 42);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("readWikiItem defaults credit meta for legacy responses", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    jsonResponse({
+      data: {
+        wiki_item_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        slug: "black-scholes",
+        title: "Black-Scholes Model",
+        summary: "Option pricing model",
+        body_markdown: "# Black-Scholes",
+        tags: ["options"],
+        aliases: ["BS model"],
+        related_concepts: ["implied-volatility"],
+        source_updated_at: "2026-03-01T00:00:00Z",
+        created_at: "2026-03-01T00:00:00Z",
+        updated_at: "2026-03-15T00:00:00Z",
+      },
+    })) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.readWikiItem({
+      wikiItemId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    });
+
+    assert.equal(response.data.bodyMarkdown, "# Black-Scholes");
+    assert.equal(response.meta.creditsUsed, 0);
+    assert.equal(response.meta.remainingCredits, null);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -339,6 +381,50 @@ test("request converts fetch failures into LlmquantTransportError", async () => 
   }
 });
 
+test("request can use remote MCP internal principal headers instead of a user API key", async () => {
+  const calls: Array<{ init: RequestInit | undefined }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (_input, init) => {
+    calls.push({ init });
+
+    return jsonResponse({
+      data: {
+        price: 87500.25,
+        ticker: "BTC-USD",
+        dayChange: 1200.5,
+        dayChangePercent: 1.39,
+        volume24h: 28500.75,
+        time: "2026-03-30T12:00:00Z",
+      },
+      meta: { creditsUsed: 1, remainingCredits: 97 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient({
+      baseUrl: "https://api.llmquantdata.test",
+      timeoutMs: 1_500,
+      internalAuth: {
+        secret: "internal-secret",
+        userId: "user-1",
+        clientType: "claude_custom_connector",
+        mcpTokenId: "mt1",
+      },
+    });
+
+    await client.getCryptoSnapshot({ ticker: "BTC-USD" });
+
+    const headers = new Headers(calls[0]?.init?.headers);
+    assert.equal(headers.get("authorization"), "Bearer internal-secret");
+    assert.equal(headers.get("x-llmquant-user-id"), "user-1");
+    assert.equal(headers.get("x-llmquant-client-type"), "claude_custom_connector");
+    assert.equal(headers.get("x-llmquant-mcp-token-id"), "mt1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Paper (existing tests)
 // ---------------------------------------------------------------------------
@@ -393,6 +479,10 @@ test("readPaper posts to the paper read route and maps nested sections", async (
           },
         ],
       },
+      meta: {
+        creditsUsed: 0,
+        remainingCredits: 9,
+      },
     });
   }) as typeof fetch;
 
@@ -411,6 +501,64 @@ test("readPaper posts to the paper read route and maps nested sections", async (
     assert.equal(response.data.sections[0]?.bodyMarkdown, "## Results");
     assert.equal(response.data.availableSections[1]?.sectionKey, "results");
     assert.equal(response.data.fullTextCharCount, 340);
+    assert.equal(response.meta.creditsUsed, 0);
+    assert.equal(response.meta.remainingCredits, 9);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("readPaper defaults credit meta for legacy responses", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    jsonResponse({
+      data: {
+        paper_card_id: "11111111-1111-1111-1111-111111111111",
+        source_paper_id: "manual_arxiv:2401.00001",
+        title: "Paper Title",
+        authors: ["Alice", "Bob"],
+        abstract: "Abstract",
+        summary: "Summary",
+        tags: ["ml"],
+        pdf_url: "https://example.com/paper.pdf",
+        section_count: 1,
+        full_text_char_count: 220,
+        available_sections: [
+          {
+            section_key: "results",
+            section_type: "results",
+            title: "Results",
+            char_count: 220,
+            section_order: 1,
+          },
+        ],
+        source_updated_at: "2026-03-24T00:00:00Z",
+        created_at: "2026-03-24T00:00:00Z",
+        updated_at: "2026-03-24T00:00:00Z",
+        sections: [
+          {
+            paper_card_id: "11111111-1111-1111-1111-111111111111",
+            section_key: "results",
+            section_type: "results",
+            title: "Results",
+            section_order: 1,
+            body_markdown: "## Results",
+            char_count: 220,
+          },
+        ],
+      },
+    })) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.readPaper({
+      paperCardId: "11111111-1111-1111-1111-111111111111",
+    });
+
+    assert.equal(response.data.sections[0]?.bodyMarkdown, "## Results");
+    assert.equal(response.meta.creditsUsed, 0);
+    assert.equal(response.meta.remainingCredits, null);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -32,6 +32,7 @@
 - [试一试](#试一试)
 - [一键安装（Prompt）](#一键安装prompt)
 - [接入方式](#接入方式)
+- [Remote / Hosted MCP](#remote--hosted-mcp)
 - [环境变量](#环境变量)
 - [路线图](#路线图)
 - [另请参阅](#另请参阅)
@@ -65,6 +66,8 @@
 | `crypto_historical_klines` | 加密货币历史 K 线（Binance 现货） | 1 |
 | `crypto_snapshot` | 加密货币实时价格 + 24h 统计 | 1 |
 | `equity_historical_prices` | 美股日线 OHLCV + 分红/拆股 | 1 |
+| `etf_lookup` | ETF 基本信息 + SEC 映射 + top holdings 摘要（当前覆盖的 SEC-backed universe） | 0 |
+| `etf_holdings` | ETF 最近可用 SEC N-PORT 监管持仓（当前覆盖的 SEC-backed universe） | 1* |
 | `macro_indicator_search` | 浏览 50+ 精选宏观指标（FRED 等） | 0 |
 | `macro_indicator_history` | 查询宏观指标历史数据 | 1 |
 | `macro_indicator_snapshot` | 获取宏观指标最新值 | 1 |
@@ -180,17 +183,35 @@ gemini mcp add -s user \
 > [!NOTE]
 > 更多客户端的接入指南在补充中。你用的框架没列出来？[提个 Issue](https://github.com/LLMQuant/data-mcp/issues)，我们来加。
 
+## Remote / Hosted MCP
+
+`@llmquant/data-mcp` 本地仍默认走 stdio。部分 LLMQuant 账号也可以在 Dashboard 里生成 hosted Remote MCP connector URL；适合支持远程 connector、且不想在本地运行 Node.js 进程的 MCP 客户端。
+
+### Claude custom connectors
+
+在 LLMQuant Dashboard 的 **Connect** 里生成 Remote MCP URL：
+
+```text
+https://mcp.llmquantdata.com/u/lqd_mcp_.../mcp
+```
+
+把完整 URL 粘到 Claude custom connector。Hosted URL 和本地 `LLMQUANT_API_KEY` 是分开的，可以在 Dashboard 里单独 revoke。
+
+> [!IMPORTANT]
+> 请把 hosted connector URL 当作密码保存。任何拿到 URL 的人都可以使用这个 connector，直到你 revoke 它。
+
 ## 环境变量
 
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `LLMQUANT_API_KEY` | 是 | — | API key |
+| `LLMQUANT_API_KEY` | stdio 必填 | — | 本地 stdio 模式用的用户 API key |
 | `LLMQUANT_BASE_URL` | 否 | `https://api.llmquantdata.com` | API 地址 |
 | `LLMQUANT_API_TIMEOUT_MS` | 否 | `15000` | 请求超时，毫秒（最大 120000） |
 
 ## 路线图
 
-- [ ] Streamable HTTP transport（不装 Node.js 也能远程用）
+- [x] Streamable HTTP transport（不装 Node.js 也能远程用）
+- [ ] Claude Connectors Directory OAuth 流程
 - [ ] 更多数据 — 新闻、公司基本面、earnings call
 - [ ] Agent skills 配套包（**llmquantdata-skills**）
 - [ ] 更多 agent 框架接入指南

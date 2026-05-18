@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { topKSchema, wikiQuerySchema } from "../shared/schemas";
@@ -11,8 +11,8 @@ function roundScore(value: number) {
 }
 
 export function registerSearchWikiTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "wiki_search",
@@ -26,9 +26,9 @@ export function registerSearchWikiTool(
         .describe("Number of results to return. Defaults to 5 and cannot exceed 10.")
         .default(5),
     }),
-    execute: async ({ query, topK }) => {
+    execute: async ({ query, topK }, context) => {
       try {
-        const response = await api.searchWiki({ query, topK });
+        const response = await getApiClient(api, context).searchWiki({ query, topK });
         const items = response.data.map((item) => ({
           wikiItemId: item.wikiItemId,
           slug: item.slug,

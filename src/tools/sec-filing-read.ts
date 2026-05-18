@@ -1,7 +1,7 @@
-import type { FastMCP } from "fastmcp";
+import type { McpToolRegistry } from "./registry";
 import { z } from "zod";
 
-import type { LlmquantWebApiClient } from "../client/web-api";
+import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
@@ -16,8 +16,8 @@ function formatCharCount(value: number) {
 }
 
 export function registerSecFilingReadTool(
-  server: FastMCP,
-  api: LlmquantWebApiClient,
+  server: McpToolRegistry,
+  api: ApiClientProvider,
 ) {
   server.addTool({
     name: "sec_filing_read",
@@ -65,9 +65,9 @@ export function registerSecFilingReadTool(
       quarter,
       item,
       accession_number,
-    }) => {
+    }, context) => {
       try {
-        const response = await api.getSecFilingRead({
+        const response = await getApiClient(api, context).getSecFilingRead({
           ticker,
           filingType: filing_type,
           year,

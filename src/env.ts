@@ -4,12 +4,21 @@ import { z } from "zod";
 
 const DEFAULT_BASE_URL = "https://api.llmquantdata.com";
 const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_MCP_PORT = 8080;
+const DEFAULT_MCP_HOST = "::";
+const DEFAULT_MCP_ENDPOINT = "/mcp";
+const DEFAULT_MCP_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_MCP_RATE_LIMIT_MAX = 120;
 
-const envSchema = z.object({
-  LLMQUANT_API_KEY: z
-    .string()
-    .trim()
-    .min(1, "LLMQUANT_API_KEY is required."),
+function portSchema(name: string) {
+  return z.coerce
+    .number()
+    .int()
+    .positive(`${name} must be a positive integer.`)
+    .max(65_535, `${name} must be 65535 or less.`);
+}
+
+const commonEnvSchema = z.object({
   LLMQUANT_BASE_URL: z
     .string()
     .trim()
@@ -23,10 +32,65 @@ const envSchema = z.object({
     .default(DEFAULT_TIMEOUT_MS),
 });
 
+const stdioEnvSchema = commonEnvSchema.extend({
+  LLMQUANT_API_KEY: z
+    .string()
+    .trim()
+    .min(1, "LLMQUANT_API_KEY is required."),
+});
+
+const httpStreamEnvSchema = commonEnvSchema.extend({
+  LLMQUANT_API_KEY: z.string().trim().optional(),
+  LLMQUANT_INTERNAL_API_SECRET: z
+    .string()
+    .trim()
+    .min(1, "LLMQUANT_INTERNAL_API_SECRET is required for httpStream."),
+  LLMQUANT_MCP_HOST: z.string().trim().default(DEFAULT_MCP_HOST),
+  PORT: portSchema("PORT").optional(),
+  LLMQUANT_MCP_PORT: portSchema("LLMQUANT_MCP_PORT").optional(),
+  LLMQUANT_MCP_INTERNAL_PORT: portSchema("LLMQUANT_MCP_INTERNAL_PORT").optional(),
+  LLMQUANT_MCP_ENDPOINT: z
+    .string()
+    .trim()
+    .regex(/^\/\S*$/u, "LLMQUANT_MCP_ENDPOINT must start with '/'.")
+    .default(DEFAULT_MCP_ENDPOINT),
+  LLMQUANT_MCP_ENABLE_PATH_TOKEN_PROXY: z
+    .enum(["true", "false"])
+    .default("true"),
+  LLMQUANT_MCP_ALLOWED_ORIGINS: z.string().trim().optional(),
+  LLMQUANT_MCP_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive("LLMQUANT_MCP_RATE_LIMIT_WINDOW_MS must be a positive integer.")
+    .max(
+      3_600_000,
+      "LLMQUANT_MCP_RATE_LIMIT_WINDOW_MS must be 3600000 or less.",
+    )
+    .default(DEFAULT_MCP_RATE_LIMIT_WINDOW_MS),
+  LLMQUANT_MCP_RATE_LIMIT_MAX: z.coerce
+    .number()
+    .int()
+    .min(0, "LLMQUANT_MCP_RATE_LIMIT_MAX must be 0 or greater.")
+    .max(10_000, "LLMQUANT_MCP_RATE_LIMIT_MAX must be 10000 or less.")
+    .default(DEFAULT_MCP_RATE_LIMIT_MAX),
+});
+
+export type LlmquantTransport = "stdio" | "httpStream";
+
 export interface LlmquantEnv {
-  apiKey: string;
+  apiKey?: string;
   baseUrl: string;
   timeoutMs: number;
+  transport: LlmquantTransport;
+  internalApiSecret?: string;
+  mcpHost: string;
+  mcpPort: number;
+  mcpInternalPort: number;
+  mcpEndpoint: `/${string}`;
+  enablePathTokenProxy: boolean;
+  allowedOrigins: string[];
+  rateLimitWindowMs: number;
+  rateLimitMax: number;
 }
 
 function unquote(value: string) {
@@ -125,13 +189,67 @@ function stripTrailingSlash(url: string) {
   return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
-export function getEnv(): LlmquantEnv {
+function parseTransport(argv = process.argv.slice(2)): LlmquantTransport {
+  const transportArg = argv.find((arg) => arg.startsWith("--transport="));
+  const transport = transportArg
+    ? transportArg.slice("--transport=".length)
+    : process.env.LLMQUANT_MCP_TRANSPORT;
+
+  if (transport === "httpStream" || transport === "stdio") {
+    return transport;
+  }
+
+  return "stdio";
+}
+
+function parseAllowedOrigins(value?: string) {
+  return (value ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+export function getEnv(argv = process.argv.slice(2)): LlmquantEnv {
   loadEnvFiles();
-  const parsed = envSchema.parse(process.env);
+  const transport = parseTransport(argv);
+
+  if (transport === "httpStream") {
+    const parsed = httpStreamEnvSchema.parse(process.env);
+    const mcpPort =
+      parsed.LLMQUANT_MCP_PORT ?? parsed.PORT ?? DEFAULT_MCP_PORT;
+
+    return {
+      apiKey: parsed.LLMQUANT_API_KEY,
+      baseUrl: stripTrailingSlash(parsed.LLMQUANT_BASE_URL),
+      timeoutMs: parsed.LLMQUANT_API_TIMEOUT_MS,
+      transport,
+      internalApiSecret: parsed.LLMQUANT_INTERNAL_API_SECRET,
+      mcpHost: parsed.LLMQUANT_MCP_HOST,
+      mcpPort,
+      mcpInternalPort: parsed.LLMQUANT_MCP_INTERNAL_PORT ?? mcpPort + 1,
+      mcpEndpoint: parsed.LLMQUANT_MCP_ENDPOINT as `/${string}`,
+      enablePathTokenProxy:
+        parsed.LLMQUANT_MCP_ENABLE_PATH_TOKEN_PROXY !== "false",
+      allowedOrigins: parseAllowedOrigins(parsed.LLMQUANT_MCP_ALLOWED_ORIGINS),
+      rateLimitWindowMs: parsed.LLMQUANT_MCP_RATE_LIMIT_WINDOW_MS,
+      rateLimitMax: parsed.LLMQUANT_MCP_RATE_LIMIT_MAX,
+    };
+  }
+
+  const parsed = stdioEnvSchema.parse(process.env);
 
   return {
     apiKey: parsed.LLMQUANT_API_KEY,
     baseUrl: stripTrailingSlash(parsed.LLMQUANT_BASE_URL),
     timeoutMs: parsed.LLMQUANT_API_TIMEOUT_MS,
+    transport,
+    mcpHost: DEFAULT_MCP_HOST,
+    mcpPort: DEFAULT_MCP_PORT,
+    mcpInternalPort: DEFAULT_MCP_PORT + 1,
+    mcpEndpoint: DEFAULT_MCP_ENDPOINT,
+    enablePathTokenProxy: false,
+    allowedOrigins: [],
+    rateLimitWindowMs: DEFAULT_MCP_RATE_LIMIT_WINDOW_MS,
+    rateLimitMax: DEFAULT_MCP_RATE_LIMIT_MAX,
   };
 }
