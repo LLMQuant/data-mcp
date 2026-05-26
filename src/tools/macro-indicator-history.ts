@@ -52,12 +52,19 @@ export function registerMacroIndicatorHistoryTool(
     }),
     execute: async ({ indicator, series_id, start_date, end_date, limit }, context) => {
       try {
+        // Honor the schema description's "ignored when start_date/end_date are
+        // set" contract at the MCP boundary rather than relying on the
+        // downstream web layer (contexts/mcp/design/tool-expansion.md §十一,
+        // sibling of issue #280 — regression #281).
+        const isRangeMode = Boolean(start_date && end_date);
+        const effectiveLimit = isRangeMode ? undefined : limit;
+
         const response = await getApiClient(api, context).getMacroHistorical({
           indicator,
           seriesId: series_id,
           startDate: start_date,
           endDate: end_date,
-          limit,
+          limit: effectiveLimit,
         });
 
         const id = response.data.indicator || response.data.seriesId;

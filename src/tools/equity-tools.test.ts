@@ -95,6 +95,67 @@ test("equity_historical_prices formats daily bars and preserves metadata", async
   assert.equal(payload.meta.creditsUsed, 1);
 });
 
+test("equity_historical_prices strips limit when both start_date and end_date are provided", async () => {
+  // Anti-pattern §六 #5 (Wrapper-only MCP coverage):
+  // capture call args to the mocked web client and assert limit was actively
+  // stripped at the MCP boundary, instead of silently relying on downstream
+  // behavior. Schema description promises "ignored when start_date/end_date
+  // are set"; this test proves the execute layer keeps that promise.
+  // See contexts/mcp/design/tool-expansion.md §十一.
+  const harness = createToolHarness();
+  const captured: Array<Record<string, unknown>> = [];
+  const api = {
+    async getEquityHistorical(params: Record<string, unknown>) {
+      captured.push(params);
+      return {
+        data: { ticker: "AAPL", interval: "1d", prices: [] },
+        meta: { count: 0, creditsUsed: 1, remainingCredits: 10 },
+      };
+    },
+  };
+
+  registerEquityHistoricalTool(harness.server, api as never);
+  await harness.get("equity_historical_prices").execute({
+    ticker: "AAPL",
+    start_date: "2020-01-01",
+    end_date: "2020-12-31",
+    limit: 5,
+  });
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]?.ticker, "AAPL");
+  assert.equal(captured[0]?.startDate, "2020-01-01");
+  assert.equal(captured[0]?.endDate, "2020-12-31");
+  assert.equal(captured[0]?.limit, undefined);
+});
+
+test("equity_historical_prices forwards limit when no range is provided", async () => {
+  // Companion to the strip-on-range test: in recent mode the user-supplied
+  // limit must reach the API client untouched.
+  const harness = createToolHarness();
+  const captured: Array<Record<string, unknown>> = [];
+  const api = {
+    async getEquityHistorical(params: Record<string, unknown>) {
+      captured.push(params);
+      return {
+        data: { ticker: "AAPL", interval: "1d", prices: [] },
+        meta: { count: 0, creditsUsed: 1, remainingCredits: 10 },
+      };
+    },
+  };
+
+  registerEquityHistoricalTool(harness.server, api as never);
+  await harness.get("equity_historical_prices").execute({
+    ticker: "AAPL",
+    limit: 7,
+  });
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]?.limit, 7);
+  assert.equal(captured[0]?.startDate, undefined);
+  assert.equal(captured[0]?.endDate, undefined);
+});
+
 test("equity_historical_prices handles empty result", async () => {
   const harness = createToolHarness();
   const api = {

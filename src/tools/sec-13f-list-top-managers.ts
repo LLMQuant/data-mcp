@@ -33,10 +33,11 @@ export function registerSec13fListTopManagersTool(
       "data.ranking_period (the quarter the response's ranks/values come from; " +
       "equals your input or the universe quarter).\n\n" +
       "Coverage: ranking data is stored for the quarters listed in " +
-      "meta.scope.available_ranking_periods (typically the last 4 covered " +
-      "quarters); a year/quarter outside that list returns empty managers with " +
-      "an explanatory scope_notice. Reportable value is an AUM proxy (excludes " +
-      "fixed income, options, non-U.S. holdings, shorts), not true firmwide AUM.\n\n" +
+      "meta.scope.available_ranking_periods (at least the last 4 covered " +
+      "quarters; see that field for the actual list); a year/quarter outside " +
+      "that list returns empty managers with an explanatory scope_notice. " +
+      "Reportable value is an AUM proxy (excludes fixed income, options, " +
+      "non-U.S. holdings, shorts), not true firmwide AUM.\n\n" +
       "Not a semantic search. Not a free-text manager filter. Parameterized " +
       "ranked lookup only.",
     parameters: z
@@ -49,7 +50,7 @@ export function registerSec13fListTopManagersTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to rank (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to rank (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. 13F data coverage starts in 2013; out-of-coverage years return a validation error.",
           ),
         quarter: secQuarterSchema
           .optional()

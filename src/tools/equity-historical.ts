@@ -43,11 +43,18 @@ export function registerEquityHistoricalTool(
     }),
     execute: async ({ ticker, start_date, end_date, limit }, context) => {
       try {
+        // Schema description promises "limit is ignored when start_date/end_date
+        // are set" — enforce that contract at the MCP boundary so the protocol
+        // surface is the single source of truth, not downstream behavior.
+        // See contexts/mcp/design/tool-expansion.md §十一.
+        const isRangeMode = Boolean(start_date && end_date);
+        const effectiveLimit = isRangeMode ? undefined : limit;
+
         const response = await getApiClient(api, context).getEquityHistorical({
           ticker,
           startDate: start_date,
           endDate: end_date,
-          limit,
+          limit: effectiveLimit,
         });
 
         const summary =

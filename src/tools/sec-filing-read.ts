@@ -26,38 +26,48 @@ export function registerSecFilingReadTool(
       "after sec_filing_browse returns filing metadata, use accession_number or year/quarter to fetch section text. " +
       'Common 10-K items: "1", "1A", "7", "8". Common 10-Q items: "part1item2", "part2item1a". ' +
       "10-K and 10-Q use different item code systems. This is not a semantic search tool.",
-    parameters: z.object({
-      ticker: equityTickerSchema.describe(
-        'U.S. equity ticker (e.g. "AAPL", "NVDA", "META").',
+    parameters: z
+      .object({
+        ticker: equityTickerSchema.describe(
+          'U.S. equity ticker (e.g. "AAPL", "NVDA", "META").',
+        ),
+        filing_type: secFilingTypeSchema.describe('Filing type: "10-K" or "10-Q".'),
+        year: secYearSchema
+          .optional()
+          .describe(
+            "Calendar year of period_of_report. Required for 10-K, and required with quarter for 10-Q when accession_number is omitted.",
+          ),
+        quarter: secQuarterSchema
+          .optional()
+          .describe(
+            "Quarter of period_of_report (1-4). Only used for 10-Q when accession_number is omitted.",
+          ),
+        item: z
+          .string()
+          .trim()
+          .min(1, "item must not be empty.")
+          .optional()
+          .describe(
+            'Optional section key. Examples: 10-K -> "1A", "7", "8"; 10-Q -> "part1item2", "part2item1a". Omit to fetch all extractable sections.',
+          ),
+        accession_number: z
+          .string()
+          .trim()
+          .min(1, "accession_number must not be empty.")
+          .optional()
+          .describe(
+            "Exact SEC accession number. Recommended after sec_filing_browse. Cannot be combined with year or quarter.",
+          ),
+      })
+      .refine(
+        (val) =>
+          !(val.accession_number && (val.year !== undefined || val.quarter !== undefined)),
+        {
+          message:
+            "accession_number cannot be combined with year or quarter; pass accession_number alone, or pass year (+ quarter for 10-Q) without accession_number.",
+          path: ["accession_number"],
+        },
       ),
-      filing_type: secFilingTypeSchema.describe('Filing type: "10-K" or "10-Q".'),
-      year: secYearSchema
-        .optional()
-        .describe(
-          "Calendar year of period_of_report. Required for 10-K, and required with quarter for 10-Q when accession_number is omitted.",
-        ),
-      quarter: secQuarterSchema
-        .optional()
-        .describe(
-          "Quarter of period_of_report (1-4). Only used for 10-Q when accession_number is omitted.",
-        ),
-      item: z
-        .string()
-        .trim()
-        .min(1, "item must not be empty.")
-        .optional()
-        .describe(
-          'Optional section key. Examples: 10-K -> "1A", "7", "8"; 10-Q -> "part1item2", "part2item1a". Omit to fetch all extractable sections.',
-        ),
-      accession_number: z
-        .string()
-        .trim()
-        .min(1, "accession_number must not be empty.")
-        .optional()
-        .describe(
-          "Exact SEC accession number. Recommended after sec_filing_browse. Cannot be combined with year or quarter.",
-        ),
-    }),
     execute: async ({
       ticker,
       filing_type,

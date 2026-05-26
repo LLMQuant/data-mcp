@@ -1,17 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { z } from "zod";
 import type { McpToolRegistry } from "./registry";
 
 import { registerSecFilingBrowseTool } from "./sec-filing-browse";
 import { registerSecFilingReadTool } from "./sec-filing-read";
 
+interface HarnessTool {
+  execute: (input: unknown) => Promise<string>;
+  parameters: z.ZodTypeAny;
+}
+
 function createToolHarness() {
-  const tools = new Map<string, { execute: (input: unknown) => Promise<string> }>();
+  const tools = new Map<string, HarnessTool>();
 
   return {
     server: {
-      addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
-        tools.set(tool.name, tool);
+      addTool(tool: {
+        name: string;
+        parameters: z.ZodTypeAny;
+        execute: (input: unknown) => Promise<string>;
+      }) {
+        tools.set(tool.name, { execute: tool.execute, parameters: tool.parameters });
       },
     } as McpToolRegistry,
     get(name: string) {
@@ -203,4 +213,91 @@ test("sec_filing_read handles empty result", async () => {
 
   assert.match(payload.summary, /AAPL 10-Q: no section text returned/);
   assert.equal(payload.item.items.length, 0);
+});
+
+test("sec_filing_read rejects accession_number combined with year (Closes #283)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-K",
+    accession_number: "0000320193-24-000123",
+    year: 2024,
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail when accession_number combined with year");
+  }
+  assert.match(parsed.error.message, /cannot be combined with year or quarter/);
+});
+
+test("sec_filing_read rejects accession_number combined with quarter (Closes #283)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-Q",
+    accession_number: "0000320193-24-000123",
+    quarter: 2,
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail when accession_number combined with quarter");
+  }
+  assert.match(parsed.error.message, /cannot be combined with year or quarter/);
+});
+
+test("sec_filing_read accepts accession_number alone", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-K",
+    accession_number: "0000320193-24-000123",
+  });
+
+  assert.equal(parsed.success, true);
+});
+
+test("sec_filing_read accepts year + quarter without accession_number", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-Q",
+    year: 2024,
+    quarter: 2,
+  });
+
+  assert.equal(parsed.success, true);
 });

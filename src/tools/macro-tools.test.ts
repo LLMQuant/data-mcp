@@ -196,6 +196,79 @@ test("macro_indicator_history surfaces stale flag when upstream refresh failed",
   assert.match(payload.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
 });
 
+test("macro_indicator_history forwards limit when range is not set", async () => {
+  // Recent mode: limit must reach the API client untouched.
+  const harness = createToolHarness();
+  const calls: Array<Record<string, unknown>> = [];
+  const api = {
+    async getMacroHistorical(args: Record<string, unknown>) {
+      calls.push(args);
+      return {
+        data: {
+          indicator: "us.cpi.headline",
+          seriesId: "CPIAUCSL",
+          title: "CPI",
+          frequency: "Monthly",
+          units: "Index",
+          observations: [],
+          attribution: "FRED",
+        },
+        meta: { count: 0, creditsUsed: 1, remainingCredits: 99, sourceNotice: "x" },
+      };
+    },
+  };
+
+  registerMacroIndicatorHistoryTool(harness.server, api as never);
+  await harness.get("macro_indicator_history").execute({
+    indicator: "us.cpi.headline",
+    limit: 24,
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]!.limit, 24);
+  assert.equal(calls[0]!.startDate, undefined);
+  assert.equal(calls[0]!.endDate, undefined);
+});
+
+test("macro_indicator_history drops limit when start_date + end_date are set (regression #281)", async () => {
+  // Range mode: tool description promises "limit ignored when
+  // start_date/end_date are set". Per contexts/mcp/design/tool-expansion.md §十一
+  // the MCP layer must enforce that contract, not delegate to the web layer.
+  const harness = createToolHarness();
+  const calls: Array<Record<string, unknown>> = [];
+  const api = {
+    async getMacroHistorical(args: Record<string, unknown>) {
+      calls.push(args);
+      return {
+        data: {
+          indicator: "us.gdp.real",
+          seriesId: "GDPC1",
+          title: "Real GDP",
+          frequency: "Quarterly",
+          units: "Billions of Chained 2017 Dollars",
+          observations: [],
+          attribution: "FRED",
+        },
+        meta: { count: 0, creditsUsed: 1, remainingCredits: 50, sourceNotice: "x" },
+      };
+    },
+  };
+
+  registerMacroIndicatorHistoryTool(harness.server, api as never);
+  await harness.get("macro_indicator_history").execute({
+    indicator: "us.gdp.real",
+    start_date: "2010-01-01",
+    end_date: "2024-01-01",
+    limit: 30, // Caller-provided; MCP MUST drop it in range mode.
+  });
+
+  assert.equal(calls.length, 1);
+  // The actual contract: limit becomes undefined when both dates are set.
+  assert.equal(calls[0]!.limit, undefined);
+  assert.equal(calls[0]!.startDate, "2010-01-01");
+  assert.equal(calls[0]!.endDate, "2024-01-01");
+});
+
 test("macro_indicator_search formats catalog results and preserves metadata", async () => {
   const harness = createToolHarness();
   const api = {

@@ -11,7 +11,7 @@
 
 <p align="center">
   The knowledge harness for AI‑native finance.<br/>
-  <a href="https://llmquantdata.com">Website</a> · <a href="https://llmquantdata.com/docs">Docs</a> · <a href="./README.zh-CN.md">中文</a>
+  <a href="https://llmquantdata.com">Website</a> · <a href="https://docs.llmquantdata.com">Docs</a> · <a href="./README.zh-CN.md">中文</a>
 </p>
 
 <p align="center">
@@ -71,8 +71,8 @@ Configure once — every agent in your stack gets the data.
 | `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
 | `sec_filing_browse` | Browse SEC 10-K / 10-Q filing metadata | 0 |
 | `sec_filing_read` | Read section text from a SEC filing | 1 |
-| `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × last 4 quarters) | 1 |
-| `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × last 4 quarters) | 1 |
+| `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × at least the last 4 quarters) | 1 |
+| `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × at least the last 4 quarters) | 1 |
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
 | `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently covered SEC-backed universe) | 0 |
 | `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently covered SEC-backed universe) | 1* |
@@ -159,7 +159,7 @@ codex mcp add llmquant-data \
 gemini mcp add -s user \
   -e LLMQUANT_API_KEY=your_api_key \
   llmquant-data \
-  -- npx -y @llmquant/data-mcp
+  npx -y @llmquant/data-mcp
 ```
 
 ### Other MCP Clients
@@ -185,7 +185,7 @@ Any client supporting stdio transport can use this JSON config:
 
 ## Remote / Hosted MCP
 
-`@llmquant/data-mcp` keeps local `stdio` as the default setup path. Some LLMQuant accounts can also use a hosted Remote MCP connector URL from the LLMQuant dashboard. Hosted connectors are useful when your MCP client supports remote connectors and you do not want to run a local Node.js process.
+`@llmquant/data-mcp` keeps local `stdio` as the default setup path. Signed-in LLMQuant users can also generate a hosted Remote MCP connector URL from the dashboard. Hosted connectors are useful when your MCP client supports remote connectors and you do not want to run a local Node.js process.
 
 ### Claude custom connectors
 

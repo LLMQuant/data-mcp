@@ -45,12 +45,19 @@ export function registerCryptoHistoricalTool(
     }),
     execute: async ({ ticker, interval, start_time, end_time, limit }, context) => {
       try {
+        // Enforce the description contract: when both start_time and end_time
+        // are set, `limit` is ignored. We must not forward the user's limit
+        // downstream — that is what caused Issue #280 (silent truncation).
+        // See `contexts/mcp/design/tool-expansion.md` §十一.
+        const isRangeMode = Boolean(start_time && end_time);
+        const effectiveLimit = isRangeMode ? undefined : limit;
+
         const response = await getApiClient(api, context).getCryptoHistorical({
           ticker,
           interval,
           startTime: start_time,
           endTime: end_time,
-          limit,
+          limit: effectiveLimit,
         });
 
         const summary =

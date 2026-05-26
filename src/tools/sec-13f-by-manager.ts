@@ -32,7 +32,7 @@ export function registerSec13fByManagerTool(
       "optional `limit` (default 200, max 500).\n\n" +
       "Returns: manager identity block (manager_cik, manager_name, match_type, " +
       "latest_reportable_value_usd, latest_reportable_value_period, period_rank, " +
-      "period_reportable_value_usd, is_in_latest_seed_universe); filing metadata " +
+      "period_reportable_value_usd, and coverage metadata); filing metadata " +
       "(filing_type, accession_number, filed_at, period_of_report, is_amendment, " +
       "table_entry_total, table_value_total); holdings array sorted by value_usd " +
       "desc. Top-level: data.ranking_period.\n\n" +
@@ -61,7 +61,7 @@ export function registerSec13fByManagerTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for the manager's latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for the manager's latest covered quarter. 13F data coverage starts in 2013; out-of-coverage years return a validation error.",
           ),
         quarter: secQuarterSchema
           .optional()

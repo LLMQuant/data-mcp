@@ -11,7 +11,7 @@
 
 <p align="center">
   The knowledge harness for AI‑native finance.<br/>
-  <a href="https://llmquantdata.com">官网</a> · <a href="https://llmquantdata.com/docs">文档</a> · <a href="./README.md">English</a>
+  <a href="https://llmquantdata.com">官网</a> · <a href="https://docs.llmquantdata.com">文档</a> · <a href="./README.md">English</a>
 </p>
 
 <p align="center">
@@ -73,8 +73,8 @@
 | `macro_indicator_snapshot` | 获取宏观指标最新值 | 1 |
 | `sec_filing_browse` | 浏览 SEC 10-K / 10-Q 财报元数据 | 0 |
 | `sec_filing_read` | 读取 SEC 财报章节正文 | 1 |
-| `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（覆盖 Top 1000 × 最近 4 季度） | 1 |
-| `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（覆盖 Top 1000 × 最近 4 季度） | 1 |
+| `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
+| `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
 | `sec_13f_list_top_managers` | 按 13F reportable value 列出 Top N smart money 机构（最新季度，最多 1000） | 1 |
 
 > 更多数据（新闻、公司基本面、earnings call 等）见[路线图](#路线图)。
@@ -159,7 +159,7 @@ codex mcp add llmquant-data \
 gemini mcp add -s user \
   -e LLMQUANT_API_KEY=your_api_key \
   llmquant-data \
-  -- npx -y @llmquant/data-mcp
+  npx -y @llmquant/data-mcp
 ```
 
 ### 其他 MCP 客户端
@@ -185,7 +185,7 @@ gemini mcp add -s user \
 
 ## Remote / Hosted MCP
 
-`@llmquant/data-mcp` 本地仍默认走 stdio。部分 LLMQuant 账号也可以在 Dashboard 里生成 hosted Remote MCP connector URL；适合支持远程 connector、且不想在本地运行 Node.js 进程的 MCP 客户端。
+`@llmquant/data-mcp` 本地仍默认走 stdio。登录后的 LLMQuant 用户也可以在 Dashboard 里生成 hosted Remote MCP connector URL；适合支持远程 connector、且不想在本地运行 Node.js 进程的 MCP 客户端。
 
 ### Claude custom connectors
 

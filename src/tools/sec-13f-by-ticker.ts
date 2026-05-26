@@ -49,7 +49,7 @@ export function registerSec13fByTickerTool(
         year: secYearSchema
           .optional()
           .describe(
-            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. NOTE: schema accepts 1900-2100 to share with 10-K/10-Q tools, but 13F data coverage starts in 2013; out-of-coverage years return 400 from the web layer.",
+            "Calendar year of the quarter to query (e.g. 2025). Required together with quarter. Omit both for latest covered quarter. 13F data coverage starts in 2013; out-of-coverage years return a validation error.",
           ),
         quarter: secQuarterSchema
           .optional()
