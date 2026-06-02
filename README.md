@@ -69,8 +69,8 @@ Configure once — every agent in your stack gets the data.
 | `macro_indicator_search` | Browse 50+ curated macro indicators (FRED, etc.) | 0 |
 | `macro_indicator_history` | Historical observations for a macro indicator | 1 |
 | `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
-| `sec_filing_browse` | Browse SEC 10-K / 10-Q / 8-K filing metadata | 0 |
-| `sec_filing_read` | Read section text from a SEC filing (8-K requires `accession_number` — browse first) | 1 |
+| `sec_filing_browse` | Browse SEC 10-K / 10-Q / 8-K filing metadata (each row carries `sectionKeys` = available section codes) | 0 |
+| `sec_filing_read` | Read section text from a SEC filing; pass `items` to fetch a batch in one call, omit for all (8-K requires `accession_number` — browse first) | 1 |
 | `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × at least the last 4 quarters) | 1 |
 | `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × at least the last 4 quarters) | 1 |
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |

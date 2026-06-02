@@ -51,6 +51,7 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
             filingDate: "2026-02-01",
             reportDate: "2025-12-31",
             url: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000010/aapl-20251231.htm",
+            sectionKeys: ["1", "1A", "7"],
           },
           {
             secFilingId: "22222222-2222-2222-2222-222222222222",
@@ -61,6 +62,7 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
             filingDate: "2026-05-02",
             reportDate: "2026-03-28",
             url: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000021/aapl-20260328.htm",
+            sectionKeys: [],
           },
         ],
         meta: {
@@ -79,7 +81,11 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
     }),
   ) as {
     summary: string;
-    items: Array<{ filingType: string; accessionNumber: string }>;
+    items: Array<{
+      filingType: string;
+      accessionNumber: string;
+      sectionKeys: string[];
+    }>;
     meta: { count: number; creditsUsed: number };
   };
 
@@ -87,6 +93,9 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
   assert.equal(payload.items.length, 2);
   assert.equal(payload.items[0]?.filingType, "10-K");
   assert.equal(payload.items[1]?.accessionNumber, "0000320193-26-000021");
+  // section_keys is surfaced verbatim (thin wrapper, never dropped).
+  assert.deepEqual(payload.items[0]?.sectionKeys, ["1", "1A", "7"]);
+  assert.deepEqual(payload.items[1]?.sectionKeys, []);
   assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
 });
@@ -158,7 +167,7 @@ test("sec_filing_read formats first returned section and preserves metadata", as
       ticker: "AAPL",
       filing_type: "10-K",
       accession_number: "0000320193-26-000010",
-      item: "1A",
+      items: ["1A"],
     }),
   ) as {
     summary: string;
@@ -384,10 +393,73 @@ test("sec_filing_read accepts 8-K with accession_number + item (Closes #305)", (
     ticker: "AAPL",
     filing_type: "8-K",
     accession_number: "0000320193-26-000050",
-    item: "item2.02",
+    items: ["item2.02"],
   });
 
   assert.equal(parsed.success, true);
+});
+
+test("sec_filing_read accepts an items batch and formats a multi-section summary (Issue #326)", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      return {
+        data: {
+          ticker: "AAPL",
+          filingType: "8-K",
+          accessionNumber: "0000320193-26-000050",
+          year: null,
+          quarter: null,
+          availableSections: [
+            { sectionKey: "item2.02", sectionTitle: "Results of Operations", ordinal: 1, charCount: 100 },
+            { sectionKey: "item9.01", sectionTitle: "Financial Statements and Exhibits", ordinal: 2, charCount: 50 },
+          ],
+          items: [
+            { number: "item2.02", name: "Results of Operations", text: "A".repeat(100) },
+            { number: "item9.01", name: "Financial Statements and Exhibits", text: "B".repeat(50) },
+          ],
+        },
+        meta: { count: 2, creditsUsed: 1 },
+      };
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const payload = JSON.parse(
+    await harness.get("sec_filing_read").execute({
+      ticker: "AAPL",
+      filing_type: "8-K",
+      accession_number: "0000320193-26-000050",
+      items: ["item2.02", "item9.01"],
+    }),
+  ) as { summary: string; item: { items: Array<{ number: string }> } };
+
+  assert.match(payload.summary, /2 sections \(item2\.02, item9\.01\)/);
+  assert.equal(payload.item.items.length, 2);
+});
+
+test("sec_filing_read rejects an items batch larger than 25 (Issue #326)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "8-K",
+    accession_number: "0000320193-26-000050",
+    items: Array.from({ length: 26 }, (_, i) => `item${i + 1}.01`),
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail for an items batch larger than 25");
+  }
+  assert.match(parsed.error.message, /25 or fewer/);
 });
 
 test("sec_filing_browse accepts filing_type 8-K (Closes #305)", () => {

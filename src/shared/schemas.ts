@@ -90,6 +90,16 @@ export const secLimitSchema = z
   .min(1, "limit must be at least 1.")
   .max(50, "limit must be 50 or less.");
 
+export const secItemsSchema = z
+  .array(
+    z
+      .string()
+      .trim()
+      .min(1, "each item must not be empty."),
+  )
+  .min(1, "items must contain at least one section key.")
+  .max(25, "items must contain 25 or fewer section keys.");
+
 export const secYearSchema = z
   .number()
   .int()

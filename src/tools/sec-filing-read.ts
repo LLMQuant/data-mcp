@@ -7,6 +7,7 @@ import { formatToolResult } from "../shared/result";
 import {
   equityTickerSchema,
   secFilingTypeSchema,
+  secItemsSchema,
   secQuarterSchema,
   secYearSchema,
 } from "../shared/schemas";
@@ -22,10 +23,12 @@ export function registerSecFilingReadTool(
   server.addTool({
     name: "sec_filing_read",
     description:
-      "Read one section from a SEC 10-K, 10-Q, or 8-K filing. This is the second step in the progressive disclosure pattern: " +
-      "after sec_filing_browse returns filing metadata, use accession_number or year/quarter to fetch section text. " +
+      "Read one or more sections from a SEC 10-K, 10-Q, or 8-K filing. This is the second step in the progressive disclosure pattern: " +
+      "after sec_filing_browse returns filing metadata (including section_keys), use accession_number or year/quarter to fetch section text. " +
+      'Pass `items` to fetch a batch in one call (1 credit), e.g. items=["item2.02","item9.01"]; omit `items` to fetch every extractable section. ' +
       'Common 10-K items: "1", "1A", "7", "8". Common 10-Q items: "part1item2", "part2item1a". ' +
       'Common 8-K items: "item2.02" (earnings press release), "item5.02" (executive changes), "ex99.1" (exhibit). ' +
+      "A requested code the filing does not have is dropped from the result (check available_sections); only when none of the requested codes exist does the call fail. " +
       "Each filing type uses a different item code system. 8-K has many filings per year so it cannot be located by " +
       "year/quarter — browse first, then read by accession_number. This is not a semantic search tool.",
     parameters: z
@@ -44,13 +47,10 @@ export function registerSecFilingReadTool(
           .describe(
             "Quarter of period_of_report (1-4). Only valid for 10-Q (and only when accession_number is omitted). Rejected for 10-K and 8-K.",
           ),
-        item: z
-          .string()
-          .trim()
-          .min(1, "item must not be empty.")
+        items: secItemsSchema
           .optional()
           .describe(
-            'Optional section key. Examples: 10-K -> "1A", "7", "8"; 10-Q -> "part1item2", "part2item1a"; 8-K -> "item2.02", "item5.02", "ex99.1". Omit to fetch all extractable sections.',
+            'Optional batch of section keys (1 credit for the whole call). Examples: 10-K -> ["1A","7","8"]; 10-Q -> ["part1item2","part2item1a"]; 8-K -> ["item2.02","item9.01","ex99.1"]. Codes absent from the filing are dropped (see available_sections). Omit to fetch all extractable sections. Max 25.',
           ),
         accession_number: z
           .string()
@@ -84,7 +84,7 @@ export function registerSecFilingReadTool(
       filing_type,
       year,
       quarter,
-      item,
+      items,
       accession_number,
     }, context) => {
       try {
@@ -93,14 +93,21 @@ export function registerSecFilingReadTool(
           filingType: filing_type,
           year,
           quarter,
-          item,
+          items,
           accessionNumber: accession_number,
         });
 
-        const firstItem = response.data.items[0];
-        const summary = firstItem
-          ? `${ticker} ${response.data.filingType} ${firstItem.number} (${firstItem.name}) — ${formatCharCount(firstItem.text.length)} chars.`
-          : `${ticker} ${response.data.filingType}: no section text returned.`;
+        const returned = response.data.items;
+        let summary: string;
+        if (returned.length === 0) {
+          summary = `${ticker} ${response.data.filingType}: no section text returned.`;
+        } else if (returned.length === 1) {
+          const only = returned[0];
+          summary = `${ticker} ${response.data.filingType} ${only.number} (${only.name}) — ${formatCharCount(only.text.length)} chars.`;
+        } else {
+          const totalChars = returned.reduce((sum, it) => sum + it.text.length, 0);
+          summary = `${ticker} ${response.data.filingType}: ${returned.length} sections (${returned.map((it) => it.number).join(", ")}) — ${formatCharCount(totalChars)} chars total.`;
+        }
 
         return formatToolResult({
           summary,

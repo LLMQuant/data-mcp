@@ -508,6 +508,7 @@ interface SecFilingApiResult {
   filing_date: string;
   report_date: string | null;
   url: string;
+  section_keys: string[];
 }
 
 interface SecSectionManifestApiResult {
@@ -557,6 +558,7 @@ export interface SecFiling {
   filingDate: string;
   reportDate: string | null;
   url: string;
+  sectionKeys: string[];
 }
 
 export interface SecSectionManifest {
@@ -1208,6 +1210,7 @@ export class LlmquantWebApiClient {
         filingDate: item.filing_date,
         reportDate: item.report_date,
         url: item.url,
+        sectionKeys: item.section_keys ?? [],
       })),
       meta: {
         count: response.meta.count,
@@ -1221,7 +1224,7 @@ export class LlmquantWebApiClient {
     filingType: string;
     year?: number;
     quarter?: number;
-    item?: string;
+    items?: string[];
     accessionNumber?: string;
   }): Promise<SecFilingReadResponse> {
     const url = new URL("/api/filings/sections", this.env.baseUrl);
@@ -1233,8 +1236,10 @@ export class LlmquantWebApiClient {
     if (params.quarter != null) {
       url.searchParams.set("quarter", String(params.quarter));
     }
-    if (params.item) {
-      url.searchParams.set("item", params.item);
+    if (params.items && params.items.length > 0) {
+      // Web route accepts the canonical comma-separated `items` batch (and a
+      // singular `item` alias, which the MCP tool no longer surfaces).
+      url.searchParams.set("items", params.items.join(","));
     }
     if (params.accessionNumber) {
       url.searchParams.set("accession_number", params.accessionNumber);

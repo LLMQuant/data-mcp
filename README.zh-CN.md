@@ -71,8 +71,8 @@
 | `macro_indicator_search` | 浏览 50+ 精选宏观指标（FRED 等） | 0 |
 | `macro_indicator_history` | 查询宏观指标历史数据 | 1 |
 | `macro_indicator_snapshot` | 获取宏观指标最新值 | 1 |
-| `sec_filing_browse` | 浏览 SEC 10-K / 10-Q 财报元数据 | 0 |
-| `sec_filing_read` | 读取 SEC 财报章节正文 | 1 |
+| `sec_filing_browse` | 浏览 SEC 10-K / 10-Q / 8-K 财报元数据（每条带 `sectionKeys` = 可读的章节 code） | 0 |
+| `sec_filing_read` | 读取 SEC 财报章节正文；传 `items` 一次取多段、省略则取全部（8-K 需先 browse 拿 `accession_number`） | 1 |
 | `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
 | `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
 | `sec_13f_list_top_managers` | 按 13F reportable value 列出 Top N smart money 机构（最新季度，最多 1000） | 1 |
