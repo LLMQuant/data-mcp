@@ -29,7 +29,7 @@ export function registerMacroIndicatorHistoryTool(
         .string()
         .optional()
         .describe(
-          'FRED series ID (e.g. "CPIAUCSL"). Use this OR indicator. Must be in the allowlist.',
+          'FRED series ID (e.g. "CPIAUCSL"). Use this OR indicator. Must be in the supported catalog.',
         ),
       start_date: z
         .string()

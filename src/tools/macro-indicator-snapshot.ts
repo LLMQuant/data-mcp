@@ -27,7 +27,7 @@ export function registerMacroIndicatorSnapshotTool(
         .string()
         .optional()
         .describe(
-          'FRED series ID (e.g. "UNRATE"). Use this OR indicator. Must be in the allowlist.',
+          'FRED series ID (e.g. "UNRATE"). Use this OR indicator. Must be in the supported catalog.',
         ),
     }),
     execute: async ({ indicator, series_id }, context) => {

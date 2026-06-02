@@ -382,6 +382,40 @@ test("httpStream path-token proxy rejects malformed token encoding without crash
   assert.equal(healthResponse.status, 200);
 });
 
+test("httpStream path-token proxy hides internal upstream errors from callers", async () => {
+  const [apiPort, publicMcpPort, internalMcpPort] = await Promise.all([
+    getAvailablePort(),
+    getAvailablePort(),
+    getAvailablePort(),
+  ]);
+  const env = {
+    ...remoteEnv({
+      apiPort,
+      internalMcpPort,
+      mcpPort: publicMcpPort,
+    }),
+    enablePathTokenProxy: true,
+    rateLimitMax: 0,
+  };
+  const originalConsoleError = console.error;
+
+  console.error = () => {};
+  const proxyServer = startPathTokenProxy(env);
+  await new Promise<void>((resolve) => proxyServer.once("listening", resolve));
+  activeServers.push({ close: () => close(proxyServer) });
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${publicMcpPort}/mcp`);
+    const payload = (await response.json()) as { error?: string };
+
+    assert.equal(response.status, 502);
+    assert.equal(payload.error, "Remote MCP service is temporarily unavailable.");
+    assert.doesNotMatch(payload.error ?? "", /upstream|ECONNREFUSED|127\.0\.0\.1/i);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
+
 test("httpStream path-token proxy rate-limits public MCP traffic", async () => {
   const [apiPort, publicMcpPort, internalMcpPort] = await Promise.all([
     getAvailablePort(),

@@ -292,10 +292,11 @@ export function startPathTokenProxy(env: LlmquantEnv) {
     );
 
     upstream.on("error", (error) => {
+      console.error("[remote-mcp] upstream request failed:", error);
       response.writeHead(502, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
-          error: `Remote MCP upstream failed: ${error.message}`,
+          error: "Remote MCP service is temporarily unavailable.",
         }),
       );
     });

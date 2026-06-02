@@ -82,7 +82,7 @@ export const macroCatalogLimitSchema = z
   .min(1, "limit must be at least 1.")
   .max(100, "limit must be 100 or less.");
 
-export const secFilingTypeSchema = z.enum(["10-K", "10-Q"]);
+export const secFilingTypeSchema = z.enum(["10-K", "10-Q", "8-K"]);
 
 export const secLimitSchema = z
   .number()

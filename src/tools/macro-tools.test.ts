@@ -6,12 +6,18 @@ import { registerMacroIndicatorHistoryTool } from "./macro-indicator-history";
 import { registerMacroIndicatorSearchTool } from "./macro-indicator-search";
 import { registerMacroIndicatorSnapshotTool } from "./macro-indicator-snapshot";
 
+type HarnessTool = {
+  name: string;
+  description?: string;
+  execute: (input: unknown) => Promise<string>;
+};
+
 function createToolHarness() {
-  const tools = new Map<string, { execute: (input: unknown) => Promise<string> }>();
+  const tools = new Map<string, HarnessTool>();
 
   return {
     server: {
-      addTool(tool: { name: string; execute: (input: unknown) => Promise<string> }) {
+      addTool(tool: HarnessTool) {
         tools.set(tool.name, tool);
       },
     } as McpToolRegistry,
@@ -26,6 +32,26 @@ function createToolHarness() {
     },
   };
 }
+
+test("macro tool public descriptions avoid internal coverage terms", () => {
+  const harness = createToolHarness();
+  const api = {};
+
+  registerMacroIndicatorSearchTool(harness.server, api as never);
+  registerMacroIndicatorHistoryTool(harness.server, api as never);
+  registerMacroIndicatorSnapshotTool(harness.server, api as never);
+
+  for (const name of [
+    "macro_indicator_search",
+    "macro_indicator_history",
+    "macro_indicator_snapshot",
+  ]) {
+    assert.doesNotMatch(
+      harness.get(name).description ?? "",
+      /\b(allowlist|seed|adapter)\b/i,
+    );
+  }
+});
 
 test("macro_indicator_history formats observations and preserves metadata", async () => {
   const harness = createToolHarness();

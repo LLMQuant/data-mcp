@@ -301,3 +301,106 @@ test("sec_filing_read accepts year + quarter without accession_number", () => {
 
   assert.equal(parsed.success, true);
 });
+
+test("sec_filing_read rejects 8-K without accession_number (Closes #305)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "8-K",
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail for 8-K without accession_number");
+  }
+  assert.match(parsed.error.message, /8-K filings require accession_number/);
+});
+
+test("sec_filing_read rejects 8-K located by year without accession_number (Closes #305)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "8-K",
+    year: 2026,
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail for 8-K located by year");
+  }
+  assert.match(parsed.error.message, /8-K filings require accession_number/);
+});
+
+test("sec_filing_read rejects quarter for 8-K (Closes #305)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "8-K",
+    quarter: 2,
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail when quarter passed for 8-K");
+  }
+  assert.match(parsed.error.message, /quarter is only valid for 10-Q/);
+});
+
+test("sec_filing_read accepts 8-K with accession_number + item (Closes #305)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "8-K",
+    accession_number: "0000320193-26-000050",
+    item: "item2.02",
+  });
+
+  assert.equal(parsed.success, true);
+});
+
+test("sec_filing_browse accepts filing_type 8-K (Closes #305)", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingBrowse() {
+      return { data: [], meta: { count: 0, creditsUsed: 0 } };
+    },
+  };
+
+  registerSecFilingBrowseTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_browse").parameters;
+  const parsed = schema.safeParse({ ticker: "AAPL", filing_type: "8-K" });
+
+  assert.equal(parsed.success, true);
+});

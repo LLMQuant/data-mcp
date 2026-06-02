@@ -1,6 +1,6 @@
 {
   "name": "@llmquant/data-mcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "LLMQuant Data MCP server — wiki, paper, crypto, equity, macro, and SEC filing tools for AI agents.",
   "type": "module",
   "bin": {
