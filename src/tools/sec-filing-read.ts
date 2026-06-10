@@ -75,6 +75,39 @@ export function registerSecFilingReadTool(
           "8-K filings require accession_number; run sec_filing_browse first to obtain it, then read by accession_number (year/quarter cannot locate an 8-K).",
         path: ["accession_number"],
       })
+      .refine(
+        (val) =>
+          val.accession_number !== undefined ||
+          val.filing_type !== "10-K" ||
+          val.year !== undefined,
+        {
+          message:
+            "10-K filings require year when accession_number is omitted.",
+          path: ["year"],
+        },
+      )
+      .refine(
+        (val) =>
+          val.accession_number !== undefined ||
+          val.filing_type !== "10-Q" ||
+          val.year !== undefined,
+        {
+          message:
+            "10-Q filings require year and quarter when accession_number is omitted.",
+          path: ["year"],
+        },
+      )
+      .refine(
+        (val) =>
+          val.accession_number !== undefined ||
+          val.filing_type !== "10-Q" ||
+          val.quarter !== undefined,
+        {
+          message:
+            "10-Q filings require year and quarter when accession_number is omitted.",
+          path: ["quarter"],
+        },
+      )
       .refine((val) => !(val.quarter !== undefined && val.filing_type !== "10-Q"), {
         message: "quarter is only valid for 10-Q filings.",
         path: ["quarter"],

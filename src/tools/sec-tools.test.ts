@@ -291,6 +291,76 @@ test("sec_filing_read accepts accession_number alone", () => {
   assert.equal(parsed.success, true);
 });
 
+test("sec_filing_read rejects 10-K without year when accession_number is omitted", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-K",
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    throw new Error("expected parse to fail for 10-K without year");
+  }
+  assert.match(parsed.error.message, /10-K filings require year/);
+});
+
+test("sec_filing_read accepts 10-K year lookup without accession_number", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const parsed = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-K",
+    year: 2024,
+  });
+
+  assert.equal(parsed.success, true);
+});
+
+test("sec_filing_read rejects 10-Q without full year-quarter locator", () => {
+  const harness = createToolHarness();
+  const api = {
+    async getSecFilingRead() {
+      throw new Error("should not be called");
+    },
+  };
+
+  registerSecFilingReadTool(harness.server, api as never);
+  const schema = harness.get("sec_filing_read").parameters;
+  const missingYearAndQuarter = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-Q",
+  });
+  const missingQuarter = schema.safeParse({
+    ticker: "AAPL",
+    filing_type: "10-Q",
+    year: 2024,
+  });
+
+  assert.equal(missingYearAndQuarter.success, false);
+  assert.equal(missingQuarter.success, false);
+  if (missingYearAndQuarter.success || missingQuarter.success) {
+    throw new Error("expected parse to fail without a complete 10-Q locator");
+  }
+  assert.match(missingYearAndQuarter.error.message, /year and quarter/);
+  assert.match(missingQuarter.error.message, /year and quarter/);
+});
+
 test("sec_filing_read accepts year + quarter without accession_number", () => {
   const harness = createToolHarness();
   const api = {
