@@ -13,7 +13,7 @@ export function registerCryptoHistoricalTool(
   server.addTool({
     name: "crypto_historical_klines",
     description:
-      "Query historical crypto OHLCV candlestick data (Binance Spot). Returns closed candles only. " +
+      "Query historical crypto OHLCV candlestick data. Returns closed candles only. " +
       "Two usage patterns: (1) pass limit for the most recent candles; " +
       "(2) pass start_time + end_time for a specific date range. " +
       "Do not pass start_time without end_time or vice versa.",

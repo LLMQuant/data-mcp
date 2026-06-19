@@ -50,7 +50,7 @@ export class LlmquantApiClientProvider {
 
       if (!userId) {
         if (this.env.transport === "httpStream") {
-          throw new Error("Remote MCP request is missing authenticated principal.");
+          throw new Error("Remote MCP connector is not authenticated.");
         }
 
         return new LlmquantWebApiClient(this.env);
@@ -60,7 +60,7 @@ export class LlmquantApiClientProvider {
         this.env.transport === "httpStream" &&
         !sessionScopes(session).includes("tools:read")
       ) {
-        throw new Error("Remote MCP principal does not allow tools:read.");
+        throw new Error("Remote MCP connector is not authorized to use tools.");
       }
 
       return new LlmquantWebApiClient({
@@ -76,7 +76,7 @@ export class LlmquantApiClientProvider {
     }
 
     if (this.env.transport === "httpStream") {
-      throw new Error("Remote MCP request is missing authenticated principal.");
+      throw new Error("Remote MCP connector is not authenticated.");
     }
 
     return new LlmquantWebApiClient(this.env);

@@ -644,7 +644,15 @@ test("httpStream works with Vercel AI SDK MCP http client for bearer and path to
     }),
     enablePathTokenProxy: true,
   };
+  // Enable the gated news_browse tool so the listing reflects the full tool set.
+  const previousNewsApiEnabled = process.env.NEWS_API_ENABLED;
+  process.env.NEWS_API_ENABLED = "true";
   const mcpServer = createMcpServer(env);
+  if (previousNewsApiEnabled === undefined) {
+    delete process.env.NEWS_API_ENABLED;
+  } else {
+    process.env.NEWS_API_ENABLED = previousNewsApiEnabled;
+  }
   await mcpServer.start({
     transportType: "httpStream",
     httpStream: {
@@ -676,8 +684,8 @@ test("httpStream works with Vercel AI SDK MCP http client for bearer and path to
     const firstPartyTools = await firstPartyClient.tools();
     const pathTokenTools = await pathTokenClient.tools();
 
-    assert.equal(Object.keys(firstPartyTools).length, 17);
-    assert.equal(Object.keys(pathTokenTools).length, 17);
+    assert.equal(Object.keys(firstPartyTools).length, 23);
+    assert.equal(Object.keys(pathTokenTools).length, 23);
 
     const firstPartyResult = await callAiSdkWikiSearch(firstPartyTools);
     const pathTokenResult = await callAiSdkWikiSearch(pathTokenTools);
@@ -865,7 +873,7 @@ test("httpStream path-token proxy rejects principals without tools:read before W
     assert.equal(result.isError, true);
     assert.match(
       JSON.stringify(result.content),
-      /Remote MCP principal does not allow tools:read/u,
+      /Remote MCP connector is not authorized to use tools/u,
     );
     assert.deepEqual(principalRequests[0]?.body, {
       token: "no-tools-read-token",

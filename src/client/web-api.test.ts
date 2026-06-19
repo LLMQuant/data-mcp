@@ -326,6 +326,237 @@ test("getCryptoSnapshot returns crypto snapshot fields in camelCase (1:1 HTTP pa
   }
 });
 
+// ---------------------------------------------------------------------------
+// Prediction Markets
+// ---------------------------------------------------------------------------
+
+test("browsePolymarketEvents builds snake_case params and maps nested fields", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: {
+        events: [
+          {
+            event_card_id: "pme_902959",
+            source_event_slug: "bitcoin-etf-approval",
+            title: "Bitcoin ETF approval",
+            market_count: 1,
+            markets: [
+              {
+                market_card_id: "pmm_253254",
+                market_question: "Will a Bitcoin ETF be approved?",
+                outcomes: [
+                  {
+                    label: "Yes",
+                    outcome_token_id: "token-yes",
+                    current_probability: 0.51,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      meta: { count: 1, nextCursor: null, scope: "finance", creditsUsed: 1 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.browsePolymarketEvents({
+      status: "active",
+      q: "Bitcoin ETF",
+      tag: "crypto",
+      asset: "BTC",
+      startTime: "2026-01-01T00:00:00Z",
+      endTime: "2026-02-01T00:00:00Z",
+      minVolume: 10_000,
+      minLiquidity: 1_000,
+      limit: 5,
+      cursor: "cursor-1",
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/polymarket/events");
+    assert.equal(url.searchParams.get("status"), "active");
+    assert.equal(url.searchParams.get("q"), "Bitcoin ETF");
+    assert.equal(url.searchParams.get("tag"), "crypto");
+    assert.equal(url.searchParams.get("asset"), "BTC");
+    assert.equal(url.searchParams.get("start_time"), "2026-01-01T00:00:00Z");
+    assert.equal(url.searchParams.get("end_time"), "2026-02-01T00:00:00Z");
+    assert.equal(url.searchParams.get("min_volume"), "10000");
+    assert.equal(url.searchParams.get("min_liquidity"), "1000");
+    assert.equal(url.searchParams.get("limit"), "5");
+    assert.equal(url.searchParams.get("cursor"), "cursor-1");
+
+    const event = response.data.events[0]!;
+    assert.equal(event.eventCardId, "pme_902959");
+    assert.equal(event.sourceEventSlug, "bitcoin-etf-approval");
+    assert.equal(event.marketCount, 1);
+    assert.equal(event.markets[0]?.marketCardId, "pmm_253254");
+    assert.equal(event.markets[0]?.outcomes[0]?.outcomeTokenId, "token-yes");
+    assert.equal(event.markets[0]?.outcomes[0]?.currentProbability, 0.51);
+    assert.equal(response.meta.creditsUsed, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("searchPolymarketEvents posts snake_case body and maps scores", async () => {
+  const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input, init) => {
+    calls.push({ url: String(input), init });
+
+    return jsonResponse({
+      data: {
+        events: [
+          {
+            event_card_id: "pme_902959",
+            title: "Bitcoin ETF approval",
+            semantic_score: 0.91,
+            lexical_score: 0.4,
+            combined_score: 0.81,
+            markets: [],
+          },
+        ],
+      },
+      meta: { count: 1, creditsUsed: 2, remainingCredits: 98 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.searchPolymarketEvents({
+      query: "Bitcoin ETF approval",
+      status: "active_or_recently_closed",
+      tag: "crypto",
+      startTime: "2024-01-01T00:00:00Z",
+      endTime: "2024-02-01T00:00:00Z",
+      limit: 5,
+    });
+
+    assert.equal(calls[0]?.url, "https://api.llmquantdata.test/api/polymarket/events/search");
+    assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
+      query: "Bitcoin ETF approval",
+      status: "active_or_recently_closed",
+      tag: "crypto",
+      start_time: "2024-01-01T00:00:00Z",
+      end_time: "2024-02-01T00:00:00Z",
+      limit: 5,
+    });
+    assert.equal(response.data.events[0]?.semanticScore, 0.91);
+    assert.equal(response.data.events[0]?.lexicalScore, 0.4);
+    assert.equal(response.data.events[0]?.combinedScore, 0.81);
+    assert.equal(response.meta.creditsUsed, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("readPolymarketEvent and readPolymarketMarket build card URLs", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    if (String(input).includes("/events/")) {
+      return jsonResponse({
+        data: {
+          event_card_id: "pme_902959",
+          title: "Bitcoin ETF approval",
+          market_count: 1,
+          markets: [{ market_card_id: "pmm_253254", market_question: "Approved?" }],
+        },
+        meta: { creditsUsed: 0, remainingCredits: 99 },
+      });
+    }
+
+    return jsonResponse({
+      data: {
+        market_card_id: "pmm_253254",
+        event_card_id: "pme_902959",
+        market_question: "Approved?",
+        outcomes: [{ label: "Yes", outcome_token_id: "token-yes" }],
+      },
+      meta: { creditsUsed: 0, remainingCredits: 99 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const event = await client.readPolymarketEvent({ eventCardId: "pme_902959" });
+    const market = await client.readPolymarketMarket({ marketCardId: "pmm_253254" });
+
+    assert.equal(
+      calls[0]?.url,
+      "https://api.llmquantdata.test/api/polymarket/events/pme_902959",
+    );
+    assert.equal(
+      calls[1]?.url,
+      "https://api.llmquantdata.test/api/polymarket/markets/pmm_253254",
+    );
+    assert.equal(event.data.eventCardId, "pme_902959");
+    assert.equal(event.data.markets[0]?.marketCardId, "pmm_253254");
+    assert.equal(market.data.marketCardId, "pmm_253254");
+    assert.equal(market.data.outcomes[0]?.outcomeTokenId, "token-yes");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getPolymarketPriceHistory builds query params and maps coverage fields", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: {
+        outcome_token_id: "token-yes",
+        interval: "1d",
+        points: [{ time: "2024-01-01T00:00:00Z", probability: 0.51, price: 0.51 }],
+        coverage_status: "partial",
+        coverage_notice: "Partial daily coverage.",
+      },
+      meta: { count: 1, creditsUsed: 0, remainingCredits: 99 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getPolymarketPriceHistory({
+      outcomeTokenId: "token-yes",
+      interval: "1d",
+      startTime: "2024-01-01T00:00:00Z",
+      endTime: "2024-01-15T00:00:00Z",
+      limit: 10,
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/polymarket/price-history");
+    assert.equal(url.searchParams.get("outcome_token_id"), "token-yes");
+    assert.equal(url.searchParams.get("interval"), "1d");
+    assert.equal(url.searchParams.get("start_time"), "2024-01-01T00:00:00Z");
+    assert.equal(url.searchParams.get("end_time"), "2024-01-15T00:00:00Z");
+    assert.equal(url.searchParams.get("limit"), "10");
+    assert.equal(response.data.outcomeTokenId, "token-yes");
+    assert.equal(response.data.coverageStatus, "partial");
+    assert.equal(response.data.coverageNotice, "Partial daily coverage.");
+    assert.equal(response.data.points[0]?.probability, 0.51);
+    assert.equal(response.meta.creditsUsed, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("request converts non-OK responses into LlmquantApiError", async () => {
   const originalFetch = globalThis.fetch;
 

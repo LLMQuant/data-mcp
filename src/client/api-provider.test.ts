@@ -32,11 +32,11 @@ test("remote provider fails closed without an authenticated principal", () => {
 
   assert.throws(
     () => provider.getClient(),
-    /Remote MCP request is missing authenticated principal/u,
+    /Remote MCP connector is not authenticated/u,
   );
   assert.throws(
     () => provider.getClient({ session: {} }),
-    /Remote MCP request is missing authenticated principal/u,
+    /Remote MCP connector is not authenticated/u,
   );
 });
 
@@ -52,7 +52,7 @@ test("remote provider fails closed without tools:read scope", () => {
           scopes: ["profile:read"],
         },
       }),
-    /Remote MCP principal does not allow tools:read/u,
+    /Remote MCP connector is not authorized to use tools/u,
   );
 });
 

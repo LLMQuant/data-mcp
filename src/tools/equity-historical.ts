@@ -13,7 +13,7 @@ export function registerEquityHistoricalTool(
   server.addTool({
     name: "equity_historical_prices",
     description:
-      "Query US equity historical daily OHLCV prices (via Yahoo Finance). Returns closed trading days only. " +
+      "Query US equity historical daily OHLCV prices. Returns closed trading days only. " +
       "Includes adjusted_close, dividend, and stock_split fields. " +
       "Two usage patterns: (1) pass limit for the most recent bars; " +
       "(2) pass start_date + end_date for a specific date range. " +

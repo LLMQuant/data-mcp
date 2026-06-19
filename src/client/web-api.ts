@@ -845,6 +845,262 @@ export interface Sec13fTopManagersResponse {
   meta: Sec13fTopManagersApiResponse["meta"];
 }
 
+// ---------------------------------------------------------------------------
+// Polymarket / Prediction Markets types
+// ---------------------------------------------------------------------------
+
+export type PolymarketEventStatus =
+  | "active"
+  | "inactive"
+  | "closed"
+  | "active_or_recently_closed";
+
+export type PolymarketPriceInterval = "1h" | "1d";
+
+export interface PolymarketOutcome {
+  outcomeId: string | null;
+  label: string;
+  outcomeIndex: number | null;
+  outcomeTokenId: string | null;
+  currentProbability: number | null;
+  lastPriceTime: string | null;
+  coverageStatus: string | null;
+  coverageReason: string | null;
+  [key: string]: unknown;
+}
+
+export interface PolymarketMarketPreview {
+  marketCardId: string;
+  sourceMarketId: string;
+  sourceMarketSlug: string | null;
+  marketQuestion: string;
+  semanticSummary: string | null;
+  outcomes: PolymarketOutcome[];
+  tags: string[];
+  labels: string[];
+  status: string;
+  lifecycleStatus: string;
+  coverageStatus: string;
+  active: boolean;
+  closed: boolean;
+  archived: boolean;
+  volume: number | null;
+  liquidity: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  lastSeenAt: string | null;
+  inactiveAt: string | null;
+  [key: string]: unknown;
+}
+
+export interface PolymarketEventCard {
+  eventCardId: string;
+  sourceEventId: string;
+  sourceEventSlug: string;
+  title: string;
+  description: string | null;
+  marketCount: number;
+  markets: PolymarketMarketPreview[];
+  tags: string[];
+  financeRelevance: unknown;
+  maxMarketVolume: number | null;
+  maxMarketLiquidity: number | null;
+  status: string;
+  lifecycleStatus: string;
+  active: boolean;
+  closed: boolean;
+  archived: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  closedTime: string | null;
+  resolutionSource: string | null;
+  coverageStatus: string;
+  syncedAt: string | null;
+  lastSeenAt: string | null;
+  inactiveAt: string | null;
+  cardVersion: number;
+  semanticScore?: number;
+  lexicalScore?: number;
+  combinedScore?: number;
+  [key: string]: unknown;
+}
+
+export interface PolymarketMarketCard extends PolymarketMarketPreview {
+  eventCardId: string;
+  sourceEventId: string;
+  sourceEventSlug: string | null;
+  eventTitle: string | null;
+  eventDescription: string | null;
+  resolutionCriteria: string | null;
+  resolutionSource: string | null;
+  conditionId: string | null;
+  questionId: string | null;
+  financeRelevance: unknown;
+  qualityFlags: string[];
+  acceptingOrders: boolean | null;
+  closedTime: string | null;
+  syncedAt: string | null;
+  cardVersion: number;
+}
+
+export interface PolymarketPricePoint {
+  time: string;
+  probability: number;
+  price: number;
+}
+
+export interface PolymarketPriceHistoryData {
+  outcomeTokenId: string;
+  interval: PolymarketPriceInterval;
+  points: PolymarketPricePoint[];
+  coverageStatus: string;
+  coverageNotice: string;
+  [key: string]: unknown;
+}
+
+export interface PolymarketEventsResponse {
+  data: { events: PolymarketEventCard[] };
+  meta: {
+    count: number;
+    nextCursor?: string | null;
+    scope: string;
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface PolymarketEventReadResponse {
+  data: PolymarketEventCard;
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface PolymarketMarketReadResponse {
+  data: PolymarketMarketCard;
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface PolymarketPriceHistoryResponse {
+  data: PolymarketPriceHistoryData;
+  meta: {
+    count: number;
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// News types
+// ---------------------------------------------------------------------------
+
+interface NewsLabelApi {
+  type: string;
+  name: string;
+}
+
+interface NewsArticleApiResult {
+  news_article_id: string;
+  title: string;
+  source: {
+    publisher: string;
+    source_url: string;
+    published_at: string;
+    source_type: string;
+  };
+  processed_summary: {
+    text: string;
+  };
+  tickers: Array<{
+    symbol: string;
+    role: string;
+    confidence: number;
+  }>;
+  labels: NewsLabelApi[];
+  sentiment: {
+    polarity: string;
+    score: number | null;
+  } | null;
+  filing_ref: {
+    sec_filing_id: string;
+    accession_number: string | null;
+    section_key: string | null;
+  } | null;
+}
+
+interface NewsBrowseApiResponse {
+  data: {
+    items: NewsArticleApiResult[];
+  };
+  meta: {
+    count: number;
+    nextCursor: string | null;
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface NewsArticle {
+  newsArticleId: string;
+  title: string;
+  source: {
+    publisher: string;
+    sourceUrl: string;
+    publishedAt: string;
+    sourceType: string;
+  };
+  processedSummary: {
+    text: string;
+  };
+  tickers: Array<{
+    symbol: string;
+    role: string;
+    confidence: number;
+  }>;
+  labels: NewsLabelApi[];
+  sentiment: {
+    polarity: string;
+    score: number | null;
+  } | null;
+  filingRef: {
+    secFilingId: string;
+    accessionNumber: string | null;
+    sectionKey: string | null;
+  } | null;
+}
+
+export interface NewsBrowseResponse {
+  data: {
+    items: NewsArticle[];
+  };
+  meta: NewsBrowseApiResponse["meta"];
+}
+
+function snakeToCamelKey(value: string) {
+  return value.replace(/_([a-z])/gu, (_, letter: string) => letter.toUpperCase());
+}
+
+function camelizePolymarketValue<T>(value: unknown): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => camelizePolymarketValue(item)) as T;
+  }
+
+  if (!value || typeof value !== "object") {
+    return value as T;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+      snakeToCamelKey(key),
+      camelizePolymarketValue(child),
+    ]),
+  ) as T;
+}
+
 export class LlmquantWebApiClient {
   constructor(private readonly env: LlmquantWebApiClientOptions) {}
 
@@ -1388,6 +1644,207 @@ export class LlmquantWebApiClient {
       method: "GET",
     });
     return { data: response.data, meta: response.meta };
+  }
+
+  async browsePolymarketEvents(params: {
+    status?: PolymarketEventStatus;
+    q?: string;
+    tag?: string;
+    asset?: string;
+    startTime?: string;
+    endTime?: string;
+    minVolume?: number;
+    minLiquidity?: number;
+    limit?: number;
+    cursor?: string;
+  }): Promise<PolymarketEventsResponse> {
+    const url = new URL("/api/polymarket/events", this.env.baseUrl);
+    if (params.status) url.searchParams.set("status", params.status);
+    if (params.q) url.searchParams.set("q", params.q);
+    if (params.tag) url.searchParams.set("tag", params.tag);
+    if (params.asset) url.searchParams.set("asset", params.asset);
+    if (params.startTime) url.searchParams.set("start_time", params.startTime);
+    if (params.endTime) url.searchParams.set("end_time", params.endTime);
+    if (params.minVolume != null) url.searchParams.set("min_volume", String(params.minVolume));
+    if (params.minLiquidity != null) url.searchParams.set("min_liquidity", String(params.minLiquidity));
+    if (params.limit != null) url.searchParams.set("limit", String(params.limit));
+    if (params.cursor) url.searchParams.set("cursor", params.cursor);
+
+    const response = await this.request<{ data: unknown; meta: PolymarketEventsResponse["meta"] }>(
+      url,
+      { method: "GET" },
+    );
+
+    return {
+      data: camelizePolymarketValue<PolymarketEventsResponse["data"]>(response.data),
+      meta: response.meta,
+    };
+  }
+
+  async searchPolymarketEvents(params: {
+    query: string;
+    status?: PolymarketEventStatus;
+    tag?: string;
+    startTime?: string;
+    endTime?: string;
+    limit?: number;
+  }): Promise<PolymarketEventsResponse> {
+    const body = {
+      query: params.query,
+      status: params.status,
+      tag: params.tag,
+      start_time: params.startTime,
+      end_time: params.endTime,
+      limit: params.limit,
+    };
+    const response = await this.request<{ data: unknown; meta: PolymarketEventsResponse["meta"] }>(
+      "/api/polymarket/events/search",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+
+    return {
+      data: camelizePolymarketValue<PolymarketEventsResponse["data"]>(response.data),
+      meta: response.meta,
+    };
+  }
+
+  async readPolymarketEvent(params: {
+    eventCardId: string;
+  }): Promise<PolymarketEventReadResponse> {
+    const response = await this.request<{
+      data: unknown;
+      meta: PolymarketEventReadResponse["meta"];
+    }>(
+      `/api/polymarket/events/${encodeURIComponent(params.eventCardId)}`,
+      { method: "GET" },
+    );
+
+    return {
+      data: camelizePolymarketValue<PolymarketEventCard>(response.data),
+      meta: response.meta,
+    };
+  }
+
+  async readPolymarketMarket(params: {
+    marketCardId: string;
+  }): Promise<PolymarketMarketReadResponse> {
+    const response = await this.request<{
+      data: unknown;
+      meta: PolymarketMarketReadResponse["meta"];
+    }>(
+      `/api/polymarket/markets/${encodeURIComponent(params.marketCardId)}`,
+      { method: "GET" },
+    );
+
+    return {
+      data: camelizePolymarketValue<PolymarketMarketCard>(response.data),
+      meta: response.meta,
+    };
+  }
+
+  async getPolymarketPriceHistory(params: {
+    outcomeTokenId: string;
+    interval: PolymarketPriceInterval;
+    startTime?: string;
+    endTime?: string;
+    limit?: number;
+  }): Promise<PolymarketPriceHistoryResponse> {
+    const url = new URL("/api/polymarket/price-history", this.env.baseUrl);
+    url.searchParams.set("outcome_token_id", params.outcomeTokenId);
+    url.searchParams.set("interval", params.interval);
+    if (params.startTime) url.searchParams.set("start_time", params.startTime);
+    if (params.endTime) url.searchParams.set("end_time", params.endTime);
+    if (params.limit != null) url.searchParams.set("limit", String(params.limit));
+
+    const response = await this.request<{
+      data: unknown;
+      meta: PolymarketPriceHistoryResponse["meta"];
+    }>(url, { method: "GET" });
+
+    return {
+      data: camelizePolymarketValue<PolymarketPriceHistoryData>(response.data),
+      meta: response.meta,
+    };
+  }
+
+  async getNewsBrowse(params: {
+    ticker?: string;
+    labels?: string;
+    labelMode?: "any" | "all";
+    sourceType?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<NewsBrowseResponse> {
+    const url = new URL("/api/news/articles", this.env.baseUrl);
+    if (params.ticker) {
+      url.searchParams.set("ticker", params.ticker);
+    }
+    if (params.labels) {
+      url.searchParams.set("labels", params.labels);
+    }
+    if (params.labelMode) {
+      url.searchParams.set("label_mode", params.labelMode);
+    }
+    if (params.sourceType) {
+      url.searchParams.set("source_type", params.sourceType);
+    }
+    if (params.startDate) {
+      url.searchParams.set("start_date", params.startDate);
+    }
+    if (params.endDate) {
+      url.searchParams.set("end_date", params.endDate);
+    }
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.cursor) {
+      url.searchParams.set("cursor", params.cursor);
+    }
+
+    const response = await this.request<NewsBrowseApiResponse>(url, {
+      method: "GET",
+    });
+
+    return {
+      data: {
+        items: response.data.items.map((item) => ({
+          newsArticleId: item.news_article_id,
+          title: item.title,
+          source: {
+            publisher: item.source.publisher,
+            sourceUrl: item.source.source_url,
+            publishedAt: item.source.published_at,
+            sourceType: item.source.source_type,
+          },
+          processedSummary: {
+            text: item.processed_summary.text,
+          },
+          tickers: item.tickers,
+          labels: item.labels ?? [],
+          sentiment:
+            item.sentiment === null
+              ? null
+              : {
+                  polarity: item.sentiment.polarity,
+                  score: item.sentiment.score,
+                },
+          filingRef:
+            item.filing_ref === null
+              ? null
+              : {
+                  secFilingId: item.filing_ref.sec_filing_id,
+                  accessionNumber: item.filing_ref.accession_number,
+                  sectionKey: item.filing_ref.section_key,
+                },
+        })),
+      },
+      meta: response.meta,
+    };
   }
 
   private async request<T>(pathOrUrl: string | URL, init: RequestInit) {

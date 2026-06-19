@@ -41,7 +41,7 @@ Context engineering meets financial data — structured for agent context, not h
 
 ## What It Does
 
-This is an MCP server for [LLMQuant Data](https://llmquantdata.com). It connects any AI agent to financial data — wiki articles, research papers, crypto & equity prices, macro indicators, SEC filings, and more — through the [Model Context Protocol](https://modelcontextprotocol.io).
+This is an MCP server for [LLMQuant Data](https://llmquantdata.com). It connects any AI agent to financial data — wiki articles, research papers, crypto & equity prices, prediction markets, macro indicators, SEC filings, and more — through the [Model Context Protocol](https://modelcontextprotocol.io).
 
 Configure once — every agent in your stack gets the data.
 
@@ -63,10 +63,15 @@ Configure once — every agent in your stack gets the data.
 | `wiki_read` | Read a wiki article by ID | 0 |
 | `paper_search` | Semantic search over 1,200+ research papers | 1 |
 | `paper_read` | Read paper sections (intro, methods, conclusion, …) | 0 |
-| `crypto_historical_klines` | Crypto OHLCV candlestick data (Binance Spot) | 1 |
+| `crypto_historical_klines` | Crypto OHLCV candlestick data | 1 |
 | `crypto_snapshot` | Current crypto price + 24h stats | 1 |
+| `polymarket_event_browse` | List or exact-filter finance-scoped Prediction Markets events by keyword, status, tag, asset, volume, and liquidity filters | 1 |
+| `polymarket_event_search` | Semantic search over finance-scoped Prediction Markets events | 2 |
+| `polymarket_event_read` | Read one Prediction Markets event card with child market previews | 0 |
+| `polymarket_market_read` | Read one Prediction Markets market card with outcomes and outcome token ids | 0 |
+| `polymarket_price_history` | Hourly or daily implied-probability history for one outcome token | 0 |
 | `equity_historical_prices` | US equity daily OHLCV + dividend/split data | 1 |
-| `macro_indicator_search` | Browse 50+ curated macro indicators (FRED, etc.) | 0 |
+| `macro_indicator_search` | Browse 50+ curated macro indicators | 0 |
 | `macro_indicator_history` | Historical observations for a macro indicator | 1 |
 | `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
 | `sec_filing_browse` | Browse SEC 10-K / 10-Q / 8-K filing metadata (each row carries `sectionKeys` = available section codes) | 0 |
@@ -77,7 +82,9 @@ Configure once — every agent in your stack gets the data.
 | `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently covered SEC-backed universe) | 0 |
 | `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently covered SEC-backed universe) | 1* |
 
-> More data products (news, company fundamentals, earnings transcripts, etc.) are on the [roadmap](#roadmap).
+Prediction Markets tools follow an event-first flow: use `polymarket_event_search` first for natural-language discovery, use `polymarket_event_browse` only for list/exact-filter requests, then read a selected event, read a market, and request price history for an outcome token.
+
+> More data products (company fundamentals, earnings transcripts, etc.) are on the [roadmap](#roadmap).
 
 Four ways to access each data product:
 
@@ -212,7 +219,7 @@ Paste the full URL into Claude's custom connector flow. The hosted URL is separa
 
 - [x] Streamable HTTP transport (remote MCP without local Node.js)
 - [ ] OAuth connector flow for Claude Connectors Directory
-- [ ] More data products — news, company fundamentals, earnings transcripts
+- [ ] More data products — company fundamentals, earnings transcripts
 - [ ] Agent skills companion package (**llmquantdata-skills**)
 - [ ] Integration guides for more agent frameworks
 

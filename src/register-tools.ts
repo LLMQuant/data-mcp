@@ -8,6 +8,12 @@ import { registerEtfLookupTool } from "./tools/etf-lookup";
 import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-history";
 import { registerMacroIndicatorSearchTool } from "./tools/macro-indicator-search";
 import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snapshot";
+import { registerNewsBrowseTool } from "./tools/news-browse";
+import { registerPolymarketEventBrowseTool } from "./tools/polymarket-event-browse";
+import { registerPolymarketEventReadTool } from "./tools/polymarket-event-read";
+import { registerPolymarketEventSearchTool } from "./tools/polymarket-event-search";
+import { registerPolymarketMarketReadTool } from "./tools/polymarket-market-read";
+import { registerPolymarketPriceHistoryTool } from "./tools/polymarket-price-history";
 import { registerReadPaperTool } from "./tools/read-paper";
 import { registerReadWikiTool } from "./tools/read-wiki";
 import { registerSearchPaperTool } from "./tools/search-paper";
@@ -28,6 +34,11 @@ export function registerLlmquantDataTools(
   registerReadPaperTool(server, api);
   registerCryptoHistoricalTool(server, api);
   registerCryptoSnapshotTool(server, api);
+  registerPolymarketEventBrowseTool(server, api);
+  registerPolymarketEventSearchTool(server, api);
+  registerPolymarketEventReadTool(server, api);
+  registerPolymarketMarketReadTool(server, api);
+  registerPolymarketPriceHistoryTool(server, api);
   registerEquityHistoricalTool(server, api);
   registerMacroIndicatorSearchTool(server, api);
   registerMacroIndicatorHistoryTool(server, api);
@@ -39,4 +50,7 @@ export function registerLlmquantDataTools(
   registerSec13fListTopManagersTool(server, api);
   registerEtfLookupTool(server, api);
   registerEtfHoldingsTool(server, api);
+  if (process.env.NEWS_API_ENABLED === "true") {
+    registerNewsBrowseTool(server, api);
+  }
 }

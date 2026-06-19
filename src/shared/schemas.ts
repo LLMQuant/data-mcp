@@ -6,6 +6,12 @@ export const searchQuerySchema = z
   .min(1, "query is required.")
   .max(2_000, "query must be 2000 characters or less.");
 
+export const lexicalFilterQuerySchema = z
+  .string()
+  .trim()
+  .min(1, "q is required.")
+  .max(200, "q must be 200 characters or less.");
+
 export const wikiQuerySchema = searchQuerySchema;
 
 export const topKSchema = z
@@ -182,3 +188,52 @@ export const asOfDateSchema = z
     const parsed = new Date(`${value}T00:00:00.000Z`);
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }, "as_of must be a valid calendar date.");
+
+export const polymarketStatusSchema = z.enum([
+  "active",
+  "inactive",
+  "closed",
+  "active_or_recently_closed",
+]);
+
+export const polymarketPriceIntervalSchema = z.enum(["1h", "1d"]);
+
+export const polymarketBrowseLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(100, "limit must be 100 or less.");
+
+export const polymarketSearchLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(20, "limit must be 20 or less.");
+
+export const polymarketPriceLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(20_000, "limit must be 20000 or less.");
+
+export const polymarketCardIdSchema = z
+  .string()
+  .trim()
+  .min(1, "card id must not be empty.");
+
+export const polymarketOutcomeTokenSchema = z
+  .string()
+  .trim()
+  .min(1, "outcome_token_id must not be empty.");
+
+export const polymarketNonNegativeNumberSchema = z
+  .number()
+  .min(0, "value must be non-negative.");
+
+export const polymarketIsoDateTimeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}T/u, "datetime must be ISO 8601.")
+  .refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: "datetime must be a valid ISO 8601 timestamp.",
+  });

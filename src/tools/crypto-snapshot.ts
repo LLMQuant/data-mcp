@@ -27,7 +27,7 @@ export function registerCryptoSnapshotTool(
   server.addTool({
     name: "crypto_snapshot",
     description:
-      "Get the current price snapshot for a crypto asset (Binance Spot). Returns last trade price, 24h change, and 24h volume.",
+      "Get the current price snapshot for a crypto asset. Returns last trade price, 24h change, and 24h volume.",
     parameters: z.object({
       ticker: tickerSchema.describe(
         'Crypto ticker in BASE-QUOTE format (e.g. "BTC-USD", "ETH-USD").',
