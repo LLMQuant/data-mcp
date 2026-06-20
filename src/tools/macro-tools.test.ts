@@ -172,7 +172,7 @@ test("macro_indicator_history handles empty result", async () => {
   assert.equal(payload.item.observations.length, 0);
 });
 
-test("macro_indicator_history surfaces stale flag when upstream refresh failed", async () => {
+test("macro_indicator_history surfaces stale flag when data refresh failed", async () => {
   const harness = createToolHarness();
   const api = {
     async getMacroHistorical() {

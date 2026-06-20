@@ -170,7 +170,12 @@ function createFakeWebApi({
     ) {
       if (request.url.includes("no-credit")) {
         response.writeHead(402, { "content-type": "application/json" });
-        response.end(JSON.stringify({ error: "Insufficient credits." }));
+        // Unified error envelope (response-contract.md §五): { error: { code, message } }.
+        response.end(
+          JSON.stringify({
+            error: { code: "insufficient_credits", message: "Insufficient credits." },
+          }),
+        );
         return;
       }
 
@@ -382,7 +387,7 @@ test("httpStream path-token proxy rejects malformed token encoding without crash
   assert.equal(healthResponse.status, 200);
 });
 
-test("httpStream path-token proxy hides internal upstream errors from callers", async () => {
+test("httpStream path-token proxy hides internal transport errors from callers", async () => {
   const [apiPort, publicMcpPort, internalMcpPort] = await Promise.all([
     getAvailablePort(),
     getAvailablePort(),
@@ -410,7 +415,7 @@ test("httpStream path-token proxy hides internal upstream errors from callers", 
 
     assert.equal(response.status, 502);
     assert.equal(payload.error, "Remote MCP service is temporarily unavailable.");
-    assert.doesNotMatch(payload.error ?? "", /upstream|ECONNREFUSED|127\.0\.0\.1/i);
+    assert.doesNotMatch(payload.error ?? "", /ECONNREFUSED|127\.0\.0\.1/i);
   } finally {
     console.error = originalConsoleError;
   }
@@ -924,8 +929,9 @@ test("httpStream tool failures return structured MCP errors", async () => {
     });
 
     assert.equal(result.isError, true);
+    // MCP forwards Web's sanitized error message verbatim (no appended status).
     assert.match(JSON.stringify(result.content), /Insufficient credits/u);
-    assert.match(JSON.stringify(result.content), /status 402/u);
+    assert.doesNotMatch(JSON.stringify(result.content), /status 402/u);
   } finally {
     await client.close();
   }

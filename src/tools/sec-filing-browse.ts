@@ -41,18 +41,17 @@ export function registerSecFilingBrowseTool(
           limit,
         });
 
+        // Pure forwarder: surface Web's `meta.notice` as the human line when
+        // present (e.g. "no filings" explanations); otherwise state the count.
+        // Web owns all coverage / "no data" phrasing now — MCP never invents it.
         const summary =
-          response.data.length === 0
-            ? `No SEC filings found for ${ticker}.`
-            : `${ticker}: ${response.data.length} filing(s) returned.`;
+          response.meta.notice ??
+          `${ticker}: ${response.data.length} SEC filing(s) returned.`;
 
         return formatToolResult({
           summary,
           items: response.data,
-          meta: {
-            count: response.meta.count,
-            creditsUsed: response.meta.creditsUsed,
-          },
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

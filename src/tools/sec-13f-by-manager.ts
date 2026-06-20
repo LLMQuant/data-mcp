@@ -39,13 +39,12 @@ export function registerSec13fByManagerTool(
       "Manager-name resolver semantics: 0 candidates → 404 manager_not_found; " +
       "multiple candidates → 409 manager_name_ambiguous with candidates[]; " +
       "single match → auto-resolved.\n\n" +
-      "Coverage: limited to the Top 1000 smart-money universe; ranking data " +
-      "stored for the quarters listed in meta.scope.available_ranking_periods. " +
-      "Out-of-scope manager_cik returns 200 + empty data + scope_notice. " +
+      "Coverage: limited to the Top 1,000 manager set. " +
+      "Out-of-scope manager_cik returns 200 + empty data + an explanatory notice. " +
       "Reportable value is an AUM proxy (excludes fixed income, options, " +
       "non-U.S. holdings, shorts).\n\n" +
       "Not a semantic search. Not a quarter-diff / new-position / aggregated " +
-      "ranking endpoint — returns raw holdings only.",
+      "ranking endpoint — returns holdings records only.",
     parameters: z
       .object({
         manager_cik: sec13fManagerCikSchema
@@ -92,20 +91,19 @@ export function registerSec13fByManagerTool(
         });
 
         const { manager, filing, holdings } = response.data;
-        const summary = filing
-          ? `${manager?.manager_name ?? manager?.manager_cik ?? "manager"} ${filing.period_of_report}: ${formatNumber(holdings.length)} holdings, reportable value $${formatNumber(Math.round(Number(filing.table_value_total ?? 0)))}`
-          : manager && !manager.is_in_latest_seed_universe
-            ? `Manager ${manager.manager_cik} is outside the covered Top 1,000 scope.`
-            : "No 13F filings available for this manager/quarter.";
+        // Pure forwarder: surface Web's `meta.notice` (scope / "no data"
+        // explanation) verbatim when present; otherwise build a guidance line
+        // purely from the public `data` payload. Web owns all such phrasing now.
+        const summary =
+          response.meta.notice ??
+          (filing
+            ? `${manager?.manager_name ?? manager?.manager_cik ?? "manager"} ${filing.period_of_report}: ${formatNumber(holdings.length)} holdings, reportable value $${formatNumber(Math.round(Number(filing.table_value_total ?? 0)))}`
+            : "No 13F filings available for this manager/quarter.");
 
         return formatToolResult({
           summary,
           item: response.data,
-          meta: {
-            creditsUsed: response.meta.creditsUsed,
-            scope: response.meta.scope,
-            scope_notice: response.meta.scope_notice,
-          },
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

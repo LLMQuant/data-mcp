@@ -274,7 +274,7 @@ export function startPathTokenProxy(env: LlmquantEnv) {
       return;
     }
 
-    const upstream = http.request(
+    const targetRequest = http.request(
       {
         hostname: "127.0.0.1",
         port: env.mcpInternalPort,
@@ -282,17 +282,19 @@ export function startPathTokenProxy(env: LlmquantEnv) {
         path: `${url.pathname}${url.search}`,
         headers: proxyHeaders(request, env, pathToken),
       },
-      (upstreamResponse) => {
+      (targetResponse) => {
         response.writeHead(
-          upstreamResponse.statusCode ?? 500,
-          upstreamResponse.headers,
+          targetResponse.statusCode ?? 500,
+          targetResponse.headers,
         );
-        upstreamResponse.pipe(response);
+        targetResponse.pipe(response);
       },
     );
 
-    upstream.on("error", (error) => {
-      console.error("[remote-mcp] upstream request failed:", error);
+    targetRequest.on("error", (error) => {
+      console.error("[remote-mcp] internal request failed:", {
+        error_name: error instanceof Error ? error.name : typeof error,
+      });
       response.writeHead(502, { "content-type": "application/json" });
       response.end(
         JSON.stringify({
@@ -301,7 +303,7 @@ export function startPathTokenProxy(env: LlmquantEnv) {
       );
     });
 
-    request.pipe(upstream);
+    request.pipe(targetRequest);
   });
 
   server.listen(env.mcpPort, env.mcpHost, () => {

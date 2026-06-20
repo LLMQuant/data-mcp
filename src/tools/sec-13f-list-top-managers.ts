@@ -21,21 +21,20 @@ export function registerSec13fListTopManagersTool(
   server.addTool({
     name: "sec_13f_list_top_managers",
     description:
-      "List the top N institutional managers from the SEC Form 13F Top 1000 " +
-      "universe for a given quarter, sorted by that quarter's 13F reportable " +
+      "List the top N institutional managers from the SEC Form 13F Top 1,000 " +
+      "manager set for a given quarter, sorted by that quarter's 13F reportable " +
       "value descending (rank 1 = largest).\n\n" +
       "Inputs: optional `limit` (default 30, max 1000); optional `year` + " +
       "`quarter` paired (must both be set or both omitted; defaults to the " +
-      "universe quarter).\n\n" +
+      "manager-set quarter).\n\n" +
       "Returns per entry: manager_cik, manager_name, aliases, period_rank, " +
-      "period_reportable_value_usd. Top-level: data.universe_period (the quarter " +
-      "that picked the Top 1000 set; fixed to most recent covered quarter) and " +
+      "period_reportable_value_usd. Top-level: data.manager_set_period (the quarter " +
+      "that picked the Top 1,000 set; fixed to most recent covered quarter) and " +
       "data.ranking_period (the quarter the response's ranks/values come from; " +
-      "equals your input or the universe quarter).\n\n" +
-      "Coverage: ranking data is stored for the quarters listed in " +
-      "meta.scope.available_ranking_periods (at least the last 4 covered " +
-      "quarters; see that field for the actual list); a year/quarter outside " +
-      "that list returns empty managers with an explanatory scope_notice. " +
+      "equals your input or the manager-set quarter).\n\n" +
+      "Coverage: ranking data is stored for at least the last 4 covered " +
+      "quarters; a year/quarter outside that window returns empty managers " +
+      "with an explanatory notice. " +
       "Reportable value is an AUM proxy (excludes fixed income, options, " +
       "non-U.S. holdings, shorts), not true firmwide AUM.\n\n" +
       "Not a semantic search. Not a free-text manager filter. Parameterized " +
@@ -70,29 +69,30 @@ export function registerSec13fListTopManagersTool(
           quarter,
         });
 
-        const { managers, ranking_period: rankingPeriod, universe_period } =
+        const { managers, ranking_period: rankingPeriod, manager_set_period: managerSetPeriod } =
           response.data;
 
+        // Pure forwarder: surface Web's `meta.notice` (e.g. "no ranking data
+        // for that quarter") verbatim when present; otherwise build a guidance
+        // line purely from the public `data` payload. Web owns all such phrasing.
         let summary: string;
-        if (managers.length === 0) {
+        if (response.meta.notice) {
+          summary = response.meta.notice;
+        } else if (managers.length === 0) {
           const requested =
             year !== undefined && quarter !== undefined
               ? `${year} Q${quarter}`
               : "the requested quarter";
-          summary = `No ranked managers available for ${requested}. Universe is locked to ${universe_period ?? "latest covered quarter"}; available ranking quarters: ${response.meta.scope.available_ranking_periods.join(", ") || "none covered yet"}.`;
+          summary = `No ranked managers available for ${requested}.`;
         } else {
           const rank1 = managers[0].manager_name || managers[0].manager_cik;
-          summary = `Top ${formatNumber(managers.length)} smart money managers for ${rankingPeriod ?? "latest"} (rank 1 = ${rank1}); universe selected from ${universe_period ?? "latest covered quarter"}.`;
+          summary = `Top ${formatNumber(managers.length)} institutional managers for ${rankingPeriod ?? "latest"} (rank 1 = ${rank1}); manager set selected from ${managerSetPeriod ?? "latest covered quarter"}.`;
         }
 
         return formatToolResult({
           summary,
           item: response.data,
-          meta: {
-            creditsUsed: response.meta.creditsUsed,
-            scope: response.meta.scope,
-            scope_notice: response.meta.scope_notice,
-          },
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

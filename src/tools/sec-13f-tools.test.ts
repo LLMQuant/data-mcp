@@ -27,23 +27,11 @@ function createToolHarness() {
   };
 }
 
-const SCOPE = {
-  managers_seeded: 1000,
-  universe_period: "2025-12-31",
-  available_ranking_periods: [
-    "2025-03-31",
-    "2025-06-30",
-    "2025-09-30",
-    "2025-12-31",
-  ],
-  selection_basis: "latest quarter 13F reportable value desc",
-  is_top_1000_only: true,
-};
-
-const SAMPLE_SCOPE_NOTICE =
-  "13F coverage: Top 1,000 managers selected from quarter 2025-12-31. " +
-  "Ranking data available for 4 quarters: 2025-03-31 … 2025-12-31. " +
-  "Reportable value is an AUM proxy excluding fixed income, options, non-U.S. holdings, and shorts.";
+// New unified envelope (contexts/project/api/response-contract.md §三): the 13F
+// `meta.scope` object and `meta.scope_notice` are gone. The only meta fields are
+// creditsUsed / remainingCredits / optional `notice`. "No data" / out-of-scope
+// explanations now arrive as a 200 + (possibly empty) data + a server-rendered
+// `meta.notice`, which MCP forwards verbatim (never synthesizes itself).
 
 test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdings summary", async () => {
   const harness = createToolHarness();
@@ -62,10 +50,9 @@ test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdin
             latest_reportable_value_period: "2025-12-31",
             period_rank: 7,
             period_reportable_value_usd: 302_459_211_458,
-            is_in_latest_seed_universe: true,
+            is_in_covered_manager_set: true,
           },
           filing: {
-            sec_13f_filing_id: "filing-uuid",
             filing_type: "13F-HR",
             accession_number: "0000950123-26-001234",
             filed_at: "2026-02-14",
@@ -95,33 +82,31 @@ test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdin
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: SAMPLE_SCOPE_NOTICE,
         },
       };
     },
   };
 
   registerSec13fByManagerTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_13f_list_manager_holdings").execute({
-      manager_name: "Berkshire",
-      year: 2025,
-      quarter: 4,
-      limit: 200,
-    }),
-  ) as {
+  const raw = await harness.get("sec_13f_list_manager_holdings").execute({
+    manager_name: "Berkshire",
+    year: 2025,
+    quarter: 4,
+    limit: 200,
+  });
+  const payload = JSON.parse(raw) as {
     summary: string;
     item: {
       ranking_period: string | null;
       manager: { manager_cik: string; period_rank: number };
       holdings: Array<{ ticker: string | null }>;
     };
-    meta: { creditsUsed: number; scope: { universe_period: string }; scope_notice: string };
+    meta: { creditsUsed: number; remainingCredits: number; notice?: string };
   };
 
   assert.equal(captured.args?.year, 2025);
   assert.equal(captured.args?.quarter, 4);
+  // No notice → guidance line built purely from public data (filing + count).
   assert.match(payload.summary, /2025-12-31/);
   assert.match(payload.summary, /1 holdings/);
   assert.equal(payload.item.ranking_period, "2025-12-31");
@@ -129,7 +114,10 @@ test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdin
   assert.equal(payload.item.manager.period_rank, 7);
   assert.equal(payload.item.holdings[0]?.ticker, "AXP");
   assert.equal(payload.meta.creditsUsed, 1);
-  assert.equal(payload.meta.scope.universe_period, "2025-12-31");
+  assert.equal(payload.meta.remainingCredits, 99);
+  // scope / scope_notice no longer exist on meta.
+  assert.equal("scope" in payload.meta, false);
+  assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
 });
 
 test("sec_13f_list_manager_holdings rejects requests with neither cik nor name", async () => {
@@ -148,8 +136,10 @@ test("sec_13f_list_manager_holdings rejects requests with neither cik nor name",
   );
 });
 
-test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit summary", async () => {
+test("sec_13f_list_manager_holdings forwards out-of-scope notice verbatim", async () => {
   const harness = createToolHarness();
+  const NOTICE =
+    "Manager CIK 9999 is outside the covered Top 1,000 manager set; no holdings available.";
   const api = {
     async getSec13fByManager() {
       return {
@@ -163,7 +153,7 @@ test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit 
             latest_reportable_value_period: null,
             period_rank: null,
             period_reportable_value_usd: null,
-            is_in_latest_seed_universe: false,
+            is_in_covered_manager_set: false,
           },
           filing: null,
           holdings: [],
@@ -171,8 +161,7 @@ test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit 
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: `${SAMPLE_SCOPE_NOTICE} Manager is outside the covered Top 1,000 scope.`,
+          notice: NOTICE,
         },
       };
     },
@@ -183,9 +172,12 @@ test("sec_13f_list_manager_holdings surfaces out-of-scope manager with explicit 
     await harness.get("sec_13f_list_manager_holdings").execute({
       manager_cik: "9999",
     }),
-  ) as { summary: string; item: { holdings: unknown[] } };
+  ) as { summary: string; item: { holdings: unknown[] }; meta: { notice?: string } };
 
-  assert.match(payload.summary, /outside the covered Top 1,000 scope/);
+  // The notice is the human line; MCP no longer derives prose from
+  // is_in_covered_manager_set.
+  assert.equal(payload.summary, NOTICE);
+  assert.equal(payload.meta.notice, NOTICE);
   assert.equal(payload.item.holdings.length, 0);
 });
 
@@ -208,7 +200,6 @@ test("sec_13f_list_ticker_holders forwards (year, quarter) and formats holder su
               manager_period_reportable_value_usd: 302_459_211_458,
               manager_period_of_report: "2025-12-31",
               manager_period_rank: 7,
-              sec_13f_filing_id: "filing-uuid",
               accession_number: "0000950123-26-001234",
               cusip: "67066G104",
               title_of_class: "COM",
@@ -221,38 +212,40 @@ test("sec_13f_list_ticker_holders forwards (year, quarter) and formats holder su
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: SAMPLE_SCOPE_NOTICE,
         },
       };
     },
   };
 
   registerSec13fByTickerTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_13f_list_ticker_holders").execute({
-      ticker: "NVDA",
-      year: 2025,
-      quarter: 4,
-    }),
-  ) as {
+  const raw = await harness.get("sec_13f_list_ticker_holders").execute({
+    ticker: "NVDA",
+    year: 2025,
+    quarter: 4,
+  });
+  const payload = JSON.parse(raw) as {
     summary: string;
     item: { ticker: string; ranking_period: string | null; total_holders_in_scope: number };
-    meta: { creditsUsed: number; scope_notice: string };
+    meta: { creditsUsed: number; remainingCredits: number; notice?: string };
   };
 
   assert.equal(captured.args?.year, 2025);
   assert.equal(captured.args?.quarter, 4);
+  // No notice → guidance line built purely from public data (count + period).
   assert.match(payload.summary, /NVDA 2025-12-31/);
   assert.match(payload.summary, /187 holders/);
   assert.equal(payload.item.ticker, "NVDA");
   assert.equal(payload.item.ranking_period, "2025-12-31");
   assert.equal(payload.item.total_holders_in_scope, 187);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal("scope" in payload.meta, false);
+  assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
 });
 
-test("sec_13f_list_ticker_holders handles no-hit empty result", async () => {
+test("sec_13f_list_ticker_holders forwards no-hit notice verbatim", async () => {
   const harness = createToolHarness();
+  const NOTICE =
+    "No Top 1,000 managers held XYZZZ in 2025-12-31.";
   const api = {
     async getSec13fByTicker() {
       return {
@@ -266,8 +259,7 @@ test("sec_13f_list_ticker_holders handles no-hit empty result", async () => {
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: `${SAMPLE_SCOPE_NOTICE} No holders found for XYZZZ in Top 1000 scope at 2025-12-31.`,
+          notice: NOTICE,
         },
       };
     },
@@ -278,9 +270,12 @@ test("sec_13f_list_ticker_holders handles no-hit empty result", async () => {
     await harness.get("sec_13f_list_ticker_holders").execute({
       ticker: "XYZZZ",
     }),
-  ) as { summary: string; item: { holders: unknown[] } };
+  ) as { summary: string; item: { holders: unknown[] }; meta: { notice?: string } };
 
-  assert.match(payload.summary, /no holders in Top 1000 scope/);
+  // Web's notice is the human line; MCP no longer branches on
+  // total_holders_in_scope to invent "no holders" prose.
+  assert.equal(payload.summary, NOTICE);
+  assert.equal(payload.meta.notice, NOTICE);
   assert.equal(payload.item.holders.length, 0);
 });
 
@@ -292,7 +287,7 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
       captured.args = args;
       return {
         data: {
-          universe_period: "2025-12-31",
+          manager_set_period: "2025-12-31",
           ranking_period: "2025-12-31",
           managers: [
             {
@@ -314,38 +309,37 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: SAMPLE_SCOPE_NOTICE,
         },
       };
     },
   };
 
   registerSec13fListTopManagersTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_13f_list_top_managers").execute({
-      limit: 30,
-    }),
-  ) as {
+  const raw = await harness.get("sec_13f_list_top_managers").execute({
+    limit: 30,
+  });
+  const payload = JSON.parse(raw) as {
     summary: string;
     item: {
-      universe_period: string | null;
+      manager_set_period: string | null;
       ranking_period: string | null;
       managers: Array<{ manager_cik: string; period_rank: number }>;
     };
-    meta: { creditsUsed: number; scope: { universe_period: string } };
+    meta: { creditsUsed: number; remainingCredits: number; notice?: string };
   };
 
   assert.equal(captured.args?.limit, 30);
-  assert.match(payload.summary, /Top 2 smart money managers/);
+  // No notice → guidance line built purely from public data.
+  assert.match(payload.summary, /Top 2 institutional managers/);
   assert.match(payload.summary, /VANGUARD GROUP INC/);
-  assert.equal(payload.item.universe_period, "2025-12-31");
+  assert.equal(payload.item.manager_set_period, "2025-12-31");
   assert.equal(payload.item.ranking_period, "2025-12-31");
   assert.equal(payload.item.managers[0].manager_cik, "102909");
   assert.equal(payload.item.managers[0].period_rank, 1);
   assert.equal(payload.item.managers[1].period_rank, 7);
   assert.equal(payload.meta.creditsUsed, 1);
-  assert.equal(payload.meta.scope.universe_period, "2025-12-31");
+  assert.equal("scope" in payload.meta, false);
+  assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
 });
 
 test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ranking", async () => {
@@ -356,7 +350,7 @@ test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ra
       captured.args = args;
       return {
         data: {
-          universe_period: "2025-12-31",
+          manager_set_period: "2025-12-31",
           ranking_period: "2025-09-30",
           managers: [
             {
@@ -371,8 +365,6 @@ test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ra
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: SAMPLE_SCOPE_NOTICE,
         },
       };
     },
@@ -396,21 +388,22 @@ test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ra
   assert.match(payload.summary, /2025-09-30/);
 });
 
-test("sec_13f_list_top_managers surfaces empty out-of-window result", async () => {
+test("sec_13f_list_top_managers forwards out-of-window notice verbatim", async () => {
   const harness = createToolHarness();
+  const NOTICE =
+    "No 13F ranking data is available for 2024 Q2. Covered quarters: 2025-03-31 through 2025-12-31.";
   const api = {
     async listTop13FManagers() {
       return {
         data: {
-          universe_period: "2025-12-31",
+          manager_set_period: "2025-12-31",
           ranking_period: "2024-06-30",
           managers: [],
         },
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: SCOPE,
-          scope_notice: `${SAMPLE_SCOPE_NOTICE} Period 2024-06-30 has no ranking data; available: 4 quarters: 2025-03-31 … 2025-12-31.`,
+          notice: NOTICE,
         },
       };
     },
@@ -423,45 +416,39 @@ test("sec_13f_list_top_managers surfaces empty out-of-window result", async () =
       year: 2024,
       quarter: 2,
     }),
-  ) as { summary: string; item: { managers: unknown[] } };
+  ) as { summary: string; item: { managers: unknown[] }; meta: { notice?: string } };
 
-  assert.match(payload.summary, /No ranked managers available/);
-  assert.match(payload.summary, /2024 Q2/);
+  // Web's notice is the human line; MCP forwards it instead of building a
+  // summary from the (now removed) scope.available_ranking_periods field.
+  assert.equal(payload.summary, NOTICE);
+  assert.equal(payload.meta.notice, NOTICE);
   assert.equal(payload.item.managers.length, 0);
 });
 
-test("sec_13f_list_top_managers handles fully empty universe (seed not run)", async () => {
+test("sec_13f_list_top_managers falls back to a data-only summary when no notice is sent", async () => {
   const harness = createToolHarness();
-  const emptyScope = {
-    managers_seeded: 0,
-    universe_period: null,
-    available_ranking_periods: [],
-    selection_basis: "latest quarter 13F reportable value desc",
-    is_top_1000_only: true,
-  };
   const api = {
     async listTop13FManagers() {
       return {
         data: {
-          universe_period: null,
+          manager_set_period: null,
           ranking_period: null,
           managers: [],
         },
         meta: {
           creditsUsed: 1,
           remainingCredits: 99,
-          scope: emptyScope,
-          scope_notice: "13F coverage: Top 1,000 managers selected from quarter n/a. Ranking data available for no covered quarters yet.",
         },
       };
     },
   };
 
   registerSec13fListTopManagersTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_13f_list_top_managers").execute({ limit: 30 }),
-  ) as { summary: string };
+  const raw = await harness.get("sec_13f_list_top_managers").execute({ limit: 30 });
+  const payload = JSON.parse(raw) as { summary: string; meta: { notice?: string } };
 
+  // No notice and no managers → MCP's own minimal data-derived line (no scope).
   assert.match(payload.summary, /No ranked managers available/);
-  assert.match(payload.summary, /none covered yet/);
+  assert.equal(payload.meta.notice, undefined);
+  assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
 });

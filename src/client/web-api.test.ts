@@ -557,13 +557,13 @@ test("getPolymarketPriceHistory builds query params and maps coverage fields", a
   }
 });
 
-test("request converts non-OK responses into LlmquantApiError", async () => {
+test("request forwards Web's { error: { code, message } } envelope verbatim", async () => {
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async () =>
     jsonResponse(
       {
-        error: "Rate limit exceeded",
+        error: { code: "rate_limited", message: "Rate limit exceeded. Please retry shortly." },
       },
       { status: 429 },
     )) as typeof fetch;
@@ -575,8 +575,80 @@ test("request converts non-OK responses into LlmquantApiError", async () => {
       () => client.searchWiki({ query: "option pricing", topK: 5 }),
       (error: unknown) => {
         assert.ok(error instanceof LlmquantApiError);
-        assert.equal(error.message, "Rate limit exceeded");
+        // Web owns public phrasing; MCP surfaces its message + code unchanged.
+        assert.equal(error.message, "Rate limit exceeded. Please retry shortly.");
+        assert.equal(error.code, "rate_limited");
         assert.equal(error.status, 429);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("request forwards Web's 5xx error message instead of rephrasing it", async () => {
+  const originalFetch = globalThis.fetch;
+
+  // Web now owns the public 5xx phrasing too (already sanitized on its side);
+  // MCP no longer rewrites it into its own "temporarily unavailable" copy.
+  globalThis.fetch = (async () =>
+    jsonResponse(
+      {
+        error: {
+          code: "service_unavailable",
+          message: "Service temporarily unavailable. Please try again later.",
+        },
+      },
+      { status: 503 },
+    )) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+
+    await assert.rejects(
+      () => client.searchWiki({ query: "option pricing", topK: 5 }),
+      (error: unknown) => {
+        assert.ok(error instanceof LlmquantApiError);
+        assert.equal(
+          error.message,
+          "Service temporarily unavailable. Please try again later.",
+        );
+        assert.equal(error.code, "service_unavailable");
+        assert.equal(error.status, 503);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("request fails closed with a generic message when Web sends a non-JSON / malformed error body", async () => {
+  const originalFetch = globalThis.fetch;
+
+  // No usable { error: { code, message } } object → never echo the raw body;
+  // fall back to a generic, leak-free message.
+  globalThis.fetch = (async () =>
+    new Response("PRIVATE_DIAGNOSTIC_DETAIL: stack trace at db.ts:42", {
+      status: 500,
+      headers: { "content-type": "text/plain" },
+    })) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+
+    await assert.rejects(
+      () => client.searchWiki({ query: "option pricing", topK: 5 }),
+      (error: unknown) => {
+        assert.ok(error instanceof LlmquantApiError);
+        assert.equal(
+          error.message,
+          "The LLMQuant API request could not be completed. Please try again later.",
+        );
+        assert.equal(error.code, undefined);
+        assert.equal(error.status, 500);
+        assert.doesNotMatch(error.message, /PRIVATE_DIAGNOSTIC_DETAIL|db\.ts|stack/i);
         return true;
       },
     );
@@ -599,7 +671,11 @@ test("request converts fetch failures into LlmquantTransportError", async () => 
       () => client.getCryptoSnapshot({ ticker: "BTC-USD" }),
       (error: unknown) => {
         assert.ok(error instanceof LlmquantTransportError);
-        assert.match(error.message, /ECONNREFUSED/);
+        assert.equal(
+          error.message,
+          "Failed to reach LLMQuant API. Please try again later.",
+        );
+        assert.doesNotMatch(error.message, /ECONNREFUSED|127\.0\.0\.1|localhost/i);
         assert.equal(
           error.url,
           "https://api.llmquantdata.test/api/crypto/snapshot?ticker=BTC-USD",

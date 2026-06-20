@@ -93,7 +93,7 @@ test("wiki_search returns appropriate summary when no results found", async () =
   assert.equal(payload.items.length, 0);
 });
 
-test("wiki_search surfaces API failures with status and URL context", async () => {
+test("wiki_search surfaces API failures without URL context", async () => {
   const harness = createToolHarness();
   const api = {
     async searchWiki() {
@@ -101,19 +101,27 @@ test("wiki_search surfaces API failures with status and URL context", async () =
         message: "Rate limit exceeded",
         status: 429,
         url: "https://api.llmquantdata.test/api/wiki/search",
+        code: "rate_limited",
       });
     },
   };
 
   registerSearchWikiTool(harness.server, api as never);
 
+  // Web owns the public error phrasing; MCP forwards `message` verbatim with no
+  // appended status/url decoration (response-contract.md §九).
   await assert.rejects(
     () =>
       harness.get("wiki_search").execute({
         query: "option pricing",
         topK: 5,
       }),
-    /Rate limit exceeded \(status 429, url: https:\/\/api\.llmquantdata\.test\/api\/wiki\/search\)/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "Rate limit exceeded");
+      assert.doesNotMatch(error.message, /status|429|api\.llmquantdata/i);
+      return true;
+    },
   );
 });
 

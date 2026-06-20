@@ -499,8 +499,19 @@ export interface MacroSnapshotResponse {
 // SEC filing types
 // ---------------------------------------------------------------------------
 
+/**
+ * The unified success envelope `meta` (see
+ * contexts/project/api/response-contract.md §三): credits + an optional
+ * server-rendered `notice` that explains an empty / partial result. MCP never
+ * generates this prose itself; it forwards whatever Web sends.
+ */
+interface SecForwardedMeta {
+  creditsUsed: number;
+  remainingCredits: number;
+  notice?: string;
+}
+
 interface SecFilingApiResult {
-  sec_filing_id: string;
   ticker: string;
   company_name: string | null;
   filing_type: string;
@@ -526,10 +537,7 @@ interface SecFilingReadItemApiResult {
 
 interface SecFilingBrowseApiResponse {
   data: SecFilingApiResult[];
-  meta: {
-    count: number;
-    creditsUsed: number;
-  };
+  meta: SecForwardedMeta;
 }
 
 interface SecFilingReadApiResponse {
@@ -542,15 +550,10 @@ interface SecFilingReadApiResponse {
     available_sections: SecSectionManifestApiResult[];
     items: SecFilingReadItemApiResult[];
   };
-  meta: {
-    count: number;
-    creditsUsed: number;
-    remainingCredits: number;
-  };
+  meta: SecForwardedMeta;
 }
 
 export interface SecFiling {
-  secFilingId: string;
   ticker: string;
   companyName: string | null;
   filingType: string;
@@ -576,10 +579,7 @@ export interface SecFilingReadItem {
 
 export interface SecFilingBrowseResponse {
   data: SecFiling[];
-  meta: {
-    count: number;
-    creditsUsed: number;
-  };
+  meta: SecForwardedMeta;
 }
 
 export interface SecFilingReadResponse {
@@ -592,10 +592,7 @@ export interface SecFilingReadResponse {
     availableSections: SecSectionManifest[];
     items: SecFilingReadItem[];
   };
-  meta: {
-    count: number;
-    creditsUsed: number;
-  };
+  meta: SecForwardedMeta;
 }
 
 function mapPaperSectionManifest(item: PaperSectionManifestApiResult): PaperSectionManifest {
@@ -644,21 +641,12 @@ interface Sec13fHolderApi {
   manager_period_reportable_value_usd: number;
   manager_period_of_report: string | null;
   manager_period_rank: number | null;
-  sec_13f_filing_id: string;
   accession_number: string;
   cusip: string;
   title_of_class: string;
   value_usd: number;
   shares: number;
   shares_type: "SH" | "PRN";
-}
-
-interface Sec13fScopeApi {
-  managers_seeded: number;
-  universe_period: string | null;
-  available_ranking_periods: string[];
-  selection_basis: string;
-  is_top_1000_only: boolean;
 }
 
 interface Sec13fByManagerApiResponse {
@@ -672,10 +660,9 @@ interface Sec13fByManagerApiResponse {
       latest_reportable_value_period: string | null;
       period_rank: number | null;
       period_reportable_value_usd: number | null;
-      is_in_latest_seed_universe: boolean;
+      is_in_covered_manager_set: boolean;
     } | null;
     filing: {
-      sec_13f_filing_id: string;
       filing_type: string;
       accession_number: string;
       filed_at: string;
@@ -687,12 +674,7 @@ interface Sec13fByManagerApiResponse {
     } | null;
     holdings: Sec13fHoldingApi[];
   };
-  meta: {
-    creditsUsed: number;
-    remainingCredits: number;
-    scope: Sec13fScopeApi;
-    scope_notice: string;
-  };
+  meta: SecForwardedMeta;
 }
 
 interface Sec13fByTickerApiResponse {
@@ -703,12 +685,7 @@ interface Sec13fByTickerApiResponse {
     aggregate_value_usd: number;
     holders: Sec13fHolderApi[];
   };
-  meta: {
-    creditsUsed: number;
-    remainingCredits: number;
-    scope: Sec13fScopeApi;
-    scope_notice: string;
-  };
+  meta: SecForwardedMeta;
 }
 
 interface Sec13fTopManagerApi {
@@ -721,16 +698,11 @@ interface Sec13fTopManagerApi {
 
 interface Sec13fTopManagersApiResponse {
   data: {
-    universe_period: string | null;
+    manager_set_period: string | null;
     ranking_period: string | null;
     managers: Sec13fTopManagerApi[];
   };
-  meta: {
-    creditsUsed: number;
-    remainingCredits: number;
-    scope: Sec13fScopeApi;
-    scope_notice: string;
-  };
+  meta: SecForwardedMeta;
 }
 
 export interface Sec13fByManagerResponse {
@@ -1458,7 +1430,6 @@ export class LlmquantWebApiClient {
 
     return {
       data: response.data.map((item) => ({
-        secFilingId: item.sec_filing_id,
         ticker: item.ticker,
         companyName: item.company_name,
         filingType: item.filing_type,
@@ -1468,10 +1439,7 @@ export class LlmquantWebApiClient {
         url: item.url,
         sectionKeys: item.section_keys ?? [],
       })),
-      meta: {
-        count: response.meta.count,
-        creditsUsed: response.meta.creditsUsed,
-      },
+      meta: response.meta,
     };
   }
 
@@ -1524,10 +1492,7 @@ export class LlmquantWebApiClient {
           text: item.text,
         })),
       },
-      meta: {
-        count: response.meta.count,
-        creditsUsed: response.meta.creditsUsed,
-      },
+      meta: response.meta,
     };
   }
 
@@ -1885,16 +1850,9 @@ export class LlmquantWebApiClient {
         headers,
         signal: AbortSignal.timeout(this.env.timeoutMs),
       });
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new LlmquantTransportError(
-          `Failed to reach LLMQuant API: ${error.message}`,
-          url.toString(),
-        );
-      }
-
+    } catch {
       throw new LlmquantTransportError(
-        "Failed to reach LLMQuant API.",
+        "Failed to reach LLMQuant API. Please try again later.",
         url.toString(),
       );
     }
@@ -1905,16 +1863,9 @@ export class LlmquantWebApiClient {
 
     try {
       return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new LlmquantTransportError(
-          `Failed to decode JSON response: ${error.message}`,
-          url.toString(),
-        );
-      }
-
+    } catch {
       throw new LlmquantTransportError(
-        "Failed to decode JSON response.",
+        "Failed to read LLMQuant API response. Please try again later.",
         url.toString(),
       );
     }

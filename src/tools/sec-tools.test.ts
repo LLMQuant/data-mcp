@@ -36,14 +36,20 @@ function createToolHarness() {
   };
 }
 
-test("sec_filing_browse formats filings and preserves metadata", async () => {
+// New unified envelope (contexts/project/api/response-contract.md §三):
+//   success → { data, meta: { creditsUsed, remainingCredits, notice? } }
+// There is NO more `coverage` object / `availability` / `reason`. "No data"
+// arrives as 200 + (possibly empty) data + an optional server-rendered
+// `meta.notice`. MCP is a pure forwarder: it surfaces `notice` verbatim and
+// never synthesizes its own coverage prose.
+
+test("sec_filing_browse forwards filings and meta verbatim (no synthesized coverage)", async () => {
   const harness = createToolHarness();
   const api = {
     async getSecFilingBrowse() {
       return {
         data: [
           {
-            secFilingId: "11111111-1111-1111-1111-111111111111",
             ticker: "AAPL",
             companyName: "Apple Inc.",
             filingType: "10-K",
@@ -54,7 +60,6 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
             sectionKeys: ["1", "1A", "7"],
           },
           {
-            secFilingId: "22222222-2222-2222-2222-222222222222",
             ticker: "AAPL",
             companyName: "Apple Inc.",
             filingType: "10-Q",
@@ -66,49 +71,53 @@ test("sec_filing_browse formats filings and preserves metadata", async () => {
           },
         ],
         meta: {
-          count: 2,
           creditsUsed: 1,
+          remainingCredits: 99,
         },
       };
     },
   };
 
   registerSecFilingBrowseTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_filing_browse").execute({
-      ticker: "AAPL",
-      limit: 2,
-    }),
-  ) as {
+  const raw = await harness.get("sec_filing_browse").execute({
+    ticker: "AAPL",
+    limit: 2,
+  });
+  const payload = JSON.parse(raw) as {
     summary: string;
     items: Array<{
       filingType: string;
       accessionNumber: string;
       sectionKeys: string[];
     }>;
-    meta: { count: number; creditsUsed: number };
+    meta: { creditsUsed: number; remainingCredits: number; notice?: string };
   };
 
-  assert.match(payload.summary, /AAPL: 2 filing/);
+  // No notice present → guidance line built purely from the public data count.
+  assert.match(payload.summary, /AAPL: 2 SEC filing/);
   assert.equal(payload.items.length, 2);
   assert.equal(payload.items[0]?.filingType, "10-K");
   assert.equal(payload.items[1]?.accessionNumber, "0000320193-26-000021");
   // section_keys is surfaced verbatim (thin wrapper, never dropped).
   assert.deepEqual(payload.items[0]?.sectionKeys, ["1", "1A", "7"]);
   assert.deepEqual(payload.items[1]?.sectionKeys, []);
-  assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 99);
+  // No coverage / availability fields are read or emitted anymore.
+  assert.equal("coverage" in payload.meta, false);
+  assert.doesNotMatch(raw, /coverage|availability|"reason"/);
 });
 
-test("sec_filing_browse handles empty result", async () => {
+test("sec_filing_browse forwards meta.notice verbatim on empty result", async () => {
   const harness = createToolHarness();
   const api = {
     async getSecFilingBrowse() {
       return {
         data: [],
         meta: {
-          count: 0,
           creditsUsed: 1,
+          remainingCredits: 99,
+          notice: "We don't currently have 10-K filings for AAPL.",
         },
       };
     },
@@ -120,9 +129,11 @@ test("sec_filing_browse handles empty result", async () => {
       ticker: "AAPL",
       filing_type: "10-K",
     }),
-  ) as { summary: string; items: unknown[] };
+  ) as { summary: string; items: unknown[]; meta: { notice?: string } };
 
-  assert.match(payload.summary, /No SEC filings found for AAPL/);
+  // The Web-supplied notice is the human line — MCP forwards it unchanged.
+  assert.equal(payload.summary, "We don't currently have 10-K filings for AAPL.");
+  assert.equal(payload.meta.notice, "We don't currently have 10-K filings for AAPL.");
   assert.equal(payload.items.length, 0);
 });
 
@@ -154,29 +165,29 @@ test("sec_filing_read formats first returned section and preserves metadata", as
           ],
         },
         meta: {
-          count: 1,
           creditsUsed: 1,
+          remainingCredits: 99,
         },
       };
     },
   };
 
   registerSecFilingReadTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_filing_read").execute({
-      ticker: "AAPL",
-      filing_type: "10-K",
-      accession_number: "0000320193-26-000010",
-      items: ["1A"],
-    }),
-  ) as {
+  const raw = await harness.get("sec_filing_read").execute({
+    ticker: "AAPL",
+    filing_type: "10-K",
+    accession_number: "0000320193-26-000010",
+    items: ["1A"],
+  });
+  const payload = JSON.parse(raw) as {
     summary: string;
     item: { accessionNumber: string | null; items: Array<{ number: string; text: string }> };
-    meta: { count: number; creditsUsed: number };
+    meta: { creditsUsed: number; remainingCredits: number };
   };
 
   const expectedCharCount = (1250).toLocaleString("en-US");
 
+  // No notice → guidance line built purely from public data (count + char len).
   assert.equal(
     payload.summary,
     `AAPL 10-K 1A (Risk Factors) — ${expectedCharCount} chars.`,
@@ -184,12 +195,17 @@ test("sec_filing_read formats first returned section and preserves metadata", as
   assert.equal(payload.item.accessionNumber, "0000320193-26-000010");
   assert.equal(payload.item.items[0]?.number, "1A");
   assert.equal(payload.item.items[0]?.text.length, 1250);
-  assert.equal(payload.meta.count, 1);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 99);
+  // The coverage object is gone from both data and meta.
+  assert.equal("coverage" in payload.item, false);
+  assert.equal("coverage" in payload.meta, false);
+  assert.doesNotMatch(raw, /coverage|availability|"reason"/);
 });
 
-test("sec_filing_read handles empty result", async () => {
+test("sec_filing_read forwards meta.notice verbatim when no section text is available", async () => {
   const harness = createToolHarness();
+  const NOTICE = "The requested section is not available for this AAPL 10-Q filing.";
   const api = {
     async getSecFilingRead() {
       return {
@@ -203,25 +219,32 @@ test("sec_filing_read handles empty result", async () => {
           items: [],
         },
         meta: {
-          count: 0,
           creditsUsed: 1,
+          remainingCredits: 99,
+          notice: NOTICE,
         },
       };
     },
   };
 
   registerSecFilingReadTool(harness.server, api as never);
-  const payload = JSON.parse(
-    await harness.get("sec_filing_read").execute({
-      ticker: "AAPL",
-      filing_type: "10-Q",
-      year: 2026,
-      quarter: 2,
-    }),
-  ) as { summary: string; item: { items: unknown[] } };
+  const raw = await harness.get("sec_filing_read").execute({
+    ticker: "AAPL",
+    filing_type: "10-Q",
+    year: 2026,
+    quarter: 2,
+  });
+  const payload = JSON.parse(raw) as {
+    summary: string;
+    item: { items: unknown[] };
+    meta: { notice?: string };
+  };
 
-  assert.match(payload.summary, /AAPL 10-Q: no section text returned/);
+  // Web's notice IS the human line — forwarded unchanged, no MCP prose.
+  assert.equal(payload.summary, NOTICE);
+  assert.equal(payload.meta.notice, NOTICE);
   assert.equal(payload.item.items.length, 0);
+  assert.doesNotMatch(raw, /coverage|availability|"reason"/);
 });
 
 test("sec_filing_read rejects accession_number combined with year (Closes #283)", () => {
@@ -419,7 +442,7 @@ test("sec_filing_read accepts an items batch and formats a multi-section summary
             { number: "item9.01", name: "Financial Statements and Exhibits", text: "B".repeat(50) },
           ],
         },
-        meta: { count: 2, creditsUsed: 1 },
+        meta: { creditsUsed: 1, remainingCredits: 99 },
       };
     },
   };
@@ -466,7 +489,7 @@ test("sec_filing_browse accepts filing_type 8-K (Closes #305)", () => {
   const harness = createToolHarness();
   const api = {
     async getSecFilingBrowse() {
-      return { data: [], meta: { count: 0, creditsUsed: 0 } };
+      return { data: [], meta: { creditsUsed: 1, remainingCredits: 99 } };
     },
   };
 
