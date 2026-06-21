@@ -188,13 +188,13 @@ test("etf_lookup forwards the ticker and passes data/meta through unchanged", as
   const raw = await tool.execute({ ticker: "vti" });
   const parsed = JSON.parse(raw) as {
     summary: string;
-    item: typeof FULL_LOOKUP.data;
+    data: typeof FULL_LOOKUP.data;
     meta: typeof FULL_LOOKUP.meta;
   };
 
   assert.deepEqual(captured.args, { ticker: "vti" });
-  assert.equal(parsed.item.ticker, "VTI");
-  assert.equal(parsed.item.coverage_status, "full");
+  assert.equal(parsed.data.ticker, "VTI");
+  assert.equal(parsed.data.coverage_status, "full");
   assert.equal(parsed.meta.creditsUsed, 0);
   assert.match(parsed.summary, /VTI/);
   assert.match(parsed.summary, /full/);
@@ -225,10 +225,10 @@ test("etf_lookup surfaces a clear summary on coverage_status=unsupported", async
   } as never;
   registerEtfLookupTool(harness.server, api);
   const raw = await harness.get("etf_lookup").execute({ ticker: "IBIT" });
-  const parsed = JSON.parse(raw) as { summary: string; item: typeof UNSUPPORTED_LOOKUP.data };
+  const parsed = JSON.parse(raw) as { summary: string; data: typeof UNSUPPORTED_LOOKUP.data };
   assert.match(parsed.summary, /not supported/i);
-  assert.equal(parsed.item.coverage_status, "unsupported");
-  assert.match(parsed.item.coverage_notice, /Series\/Class/);
+  assert.equal(parsed.data.coverage_status, "unsupported");
+  assert.match(parsed.data.coverage_notice, /Series\/Class/);
 });
 
 test("etf_lookup propagates Web API errors as MCP errors", async () => {
@@ -259,13 +259,13 @@ test("etf_holdings forwards ticker + limit and passes data/meta through", async 
   const raw = await tool.execute({ ticker: "vti", limit: 25 });
   const parsed = JSON.parse(raw) as {
     summary: string;
-    item: typeof FULL_HOLDINGS.data;
+    data: typeof FULL_HOLDINGS.data;
     meta: typeof FULL_HOLDINGS.meta;
   };
   assert.deepEqual(captured.args, { ticker: "vti", limit: 25 });
-  assert.equal(parsed.item.ticker, "VTI");
-  assert.equal(parsed.item.holdings.length, 1);
-  assert.equal(parsed.item.holdings[0].cusip, "037833100");
+  assert.equal(parsed.data.ticker, "VTI");
+  assert.equal(parsed.data.holdings.length, 1);
+  assert.equal(parsed.data.holdings[0].cusip, "037833100");
   assert.equal(parsed.meta.creditsUsed, 1);
 });
 
@@ -318,11 +318,11 @@ test("etf_holdings unsupported path surfaces coverage_status and zero credits", 
   const raw = await harness.get("etf_holdings").execute({ ticker: "DRAM" });
   const parsed = JSON.parse(raw) as {
     summary: string;
-    item: typeof unsupported.data;
+    data: typeof unsupported.data;
     meta: typeof unsupported.meta;
   };
   assert.match(parsed.summary, /not supported/i);
-  assert.equal(parsed.item.coverage_status, "unsupported");
-  assert.deepEqual(parsed.item.holdings, []);
+  assert.equal(parsed.data.coverage_status, "unsupported");
+  assert.deepEqual(parsed.data.holdings, []);
   assert.equal(parsed.meta.creditsUsed, 0);
 });

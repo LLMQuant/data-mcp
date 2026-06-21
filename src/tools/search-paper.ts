@@ -6,10 +6,6 @@ import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { searchQuerySchema, topKSchema } from "../shared/schemas";
 
-function roundScore(value: number) {
-  return Number(value.toFixed(4));
-}
-
 export function registerSearchPaperTool(
   server: McpToolRegistry,
   api: ApiClientProvider,
@@ -29,35 +25,15 @@ export function registerSearchPaperTool(
     execute: async ({ query, topK }, context) => {
       try {
         const response = await getApiClient(api, context).searchPaper({ query, topK });
-        const items = response.data.map((item) => ({
-          paperCardId: item.paperCardId,
-          sourcePaperId: item.sourcePaperId,
-          title: item.title,
-          authors: item.authors,
-          abstract: item.abstract,
-          summary: item.summary,
-          tags: item.tags,
-          availableSections: item.availableSections,
-          sectionCount: item.sectionCount,
-          fullTextCharCount: item.fullTextCharCount,
-          pdfUrl: item.pdfUrl,
-          semanticScore: roundScore(item.semanticScore),
-        }));
-
         const summary =
-          items.length === 0
+          response.data.length === 0
             ? `No paper results found for "${query}".`
-            : `Found ${items.length} paper result(s) for "${query}". Use paper_read with a paperCardId to load sections.`;
+            : `Found ${response.data.length} paper result(s) for "${query}". Use paper_read with a paperCardId to load sections.`;
 
         return formatToolResult({
           summary,
-          items,
-          meta: {
-            query,
-            topK: response.meta.topK,
-            creditsUsed: response.meta.creditsUsed,
-            remainingCredits: response.meta.remainingCredits,
-          },
+          data: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

@@ -6,10 +6,6 @@ import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { paperCardIdSchema, paperSectionsSchema } from "../shared/schemas";
 
-function countChars(sections: { charCount: number }[]) {
-  return sections.reduce((total, section) => total + section.charCount, 0);
-}
-
 export function registerReadPaperTool(
   server: McpToolRegistry,
   api: ApiClientProvider,
@@ -38,22 +34,12 @@ export function registerReadPaperTool(
           paperCardId,
           sections: requestedAll ? undefined : sections,
         });
-        const item = response.data;
-        const returnedCharCount = countChars(item.sections);
+        const data = response.data;
 
         return formatToolResult({
-          summary: `Loaded ${item.sections.length} section(s) from paper "${item.title}".`,
-          item,
-          meta: {
-            paperCardId,
-            requestedSections: requestedAll ? ["all"] : sections,
-            creditsUsed: response.meta.creditsUsed,
-            remainingCredits: response.meta.remainingCredits,
-            returnedSectionCount: item.sections.length,
-            returnedCharCount,
-            availableSectionCount: item.availableSections.length,
-            fullTextRequested: requestedAll,
-          },
+          summary: `Loaded ${data.sections.length} section(s) from paper "${data.title}".`,
+          data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

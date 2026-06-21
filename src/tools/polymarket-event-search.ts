@@ -72,12 +72,7 @@ export function registerPolymarketEventSearchTool(
               ? `No finance prediction-market events found for "${query}".`
               : `Found ${count} finance prediction-market event(s) for "${query}".`,
           data: response.data,
-          items: response.data.events,
-          meta: {
-            ...response.meta,
-            query,
-            limit,
-          },
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

@@ -1008,3 +1008,60 @@ test("getMacroSnapshot maps snake_case latest fields and passes meta through", a
     globalThis.fetch = originalFetch;
   }
 });
+
+test("getEquityIntraday builds URL and preserves intraday fields", async () => {
+  const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input, init) => {
+    calls.push({ url: String(input), init });
+
+    return jsonResponse({
+      data: {
+        ticker: "AAPL",
+        interval: "1h",
+        prices: [
+          {
+            open: 195,
+            high: 197,
+            low: 194,
+            close: 196,
+            volume: 1234567,
+            time: "2026-06-18T13:30:00Z",
+          },
+        ],
+      },
+      meta: {
+        creditsUsed: 1,
+        remainingCredits: 41,
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getEquityIntraday({
+      ticker: "AAPL",
+      interval: "1h",
+      startDate: "2026-06-17",
+      endDate: "2026-06-18",
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/equity/intraday");
+    assert.equal(url.searchParams.get("ticker"), "AAPL");
+    assert.equal(url.searchParams.get("interval"), "1h");
+    assert.equal(url.searchParams.get("start_date"), "2026-06-17");
+    assert.equal(url.searchParams.get("end_date"), "2026-06-18");
+    assert.equal(url.searchParams.has("limit"), false);
+
+    const headers = new Headers(calls[0]?.init?.headers);
+    assert.equal(headers.get("authorization"), "Bearer test-api-key");
+    assert.equal(response.data.interval, "1h");
+    assert.equal(response.data.prices[0]?.time, "2026-06-18T13:30:00Z");
+    assert.equal(response.meta.creditsUsed, 1);
+    assert.equal(response.meta.remainingCredits, 41);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

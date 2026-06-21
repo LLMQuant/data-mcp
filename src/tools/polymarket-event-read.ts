@@ -24,14 +24,13 @@ export function registerPolymarketEventReadTool(
         const response = await getApiClient(api, context).readPolymarketEvent({
           eventCardId: event_card_id,
         });
-        const item = response.data;
+        const data = response.data;
         const marketCount =
-          typeof item.marketCount === "number" ? item.marketCount : item.markets.length;
+          typeof data.marketCount === "number" ? data.marketCount : data.markets.length;
 
         return formatToolResult({
-          summary: `Loaded Prediction Markets event "${item.title}" with ${marketCount} market(s).`,
-          data: item,
-          item,
+          summary: `Loaded Prediction Markets event "${data.title}" with ${marketCount} market(s).`,
+          data,
           meta: response.meta,
         });
       } catch (error) {

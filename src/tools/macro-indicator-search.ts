@@ -58,12 +58,8 @@ export function registerMacroIndicatorSearchTool(
 
         return formatToolResult({
           summary,
-          items: response.data,
-          meta: {
-            count: response.meta.count,
-            creditsUsed: response.meta.creditsUsed,
-            sourceNotice: response.meta.sourceNotice,
-          },
+          data: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

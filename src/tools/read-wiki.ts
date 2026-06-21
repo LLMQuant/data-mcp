@@ -27,21 +27,12 @@ export function registerReadWikiTool(
     execute: async ({ wikiItemId, maxLength }, context) => {
       try {
         const response = await getApiClient(api, context).readWikiItem({ wikiItemId, maxLength });
-        const item = response.data;
-        const returnedBodyLength = item.bodyMarkdown?.length ?? 0;
+        const data = response.data;
 
         return formatToolResult({
-          summary: `Loaded wiki item "${item.title}" (${item.slug}).`,
-          item,
-          meta: {
-            wikiItemId,
-            requestedMaxLength: maxLength ?? null,
-            creditsUsed: response.meta.creditsUsed,
-            remainingCredits: response.meta.remainingCredits,
-            returnedBodyLength,
-            possiblyTruncated:
-              maxLength != null && returnedBodyLength >= maxLength,
-          },
+          summary: `Loaded wiki item "${data.title}" (${data.slug}).`,
+          data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

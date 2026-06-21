@@ -71,17 +71,19 @@ test("crypto_historical_klines formats candle data and preserves metadata", asyn
     }),
   ) as {
     summary: string;
-    item: { ticker: string; interval: string; prices: Array<{ close: number }> };
-    meta: { count: number; creditsUsed: number };
+    data: { ticker: string; interval: string; prices: Array<{ close: number }> };
+    meta: { count: number; creditsUsed: number; remainingCredits: number };
   };
 
   assert.match(payload.summary, /BTC-USD 1d klines: 2 candle/);
-  assert.equal(payload.item.ticker, "BTC-USD");
-  assert.equal(payload.item.interval, "1d");
-  assert.equal(payload.item.prices.length, 2);
-  assert.equal(payload.item.prices[0]?.close, 87200.0);
+  assert.equal(payload.data.ticker, "BTC-USD");
+  assert.equal(payload.data.interval, "1d");
+  assert.equal(payload.data.prices.length, 2);
+  assert.equal(payload.data.prices[0]?.close, 87200.0);
   assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 99);
+  assert.equal("item" in payload, false);
 });
 
 test("crypto_historical_klines drops `limit` in range mode (regression #280, tool-expansion §十一)", async () => {
@@ -157,10 +159,10 @@ test("crypto_historical_klines handles empty result", async () => {
       ticker: "XYZ-USD",
       interval: "1h",
     }),
-  ) as { summary: string; item: { prices: unknown[] } };
+  ) as { summary: string; data: { prices: unknown[] } };
 
   assert.match(payload.summary, /No kline data found for XYZ-USD/);
-  assert.equal(payload.item.prices.length, 0);
+  assert.equal(payload.data.prices.length, 0);
 });
 
 test("crypto_snapshot formats price summary with change percentage", async () => {
@@ -189,17 +191,19 @@ test("crypto_snapshot formats price summary with change percentage", async () =>
     await harness.get("crypto_snapshot").execute({ ticker: "BTC-USD" }),
   ) as {
     summary: string;
-    item: { price: number; ticker: string; dayChangePercent: number; volume24h: number };
-    meta: { creditsUsed: number };
+    data: { price: number; ticker: string; dayChangePercent: number; volume24h: number };
+    meta: { creditsUsed: number; remainingCredits: number };
   };
 
   assert.match(payload.summary, /BTC-USD/);
   assert.match(payload.summary, /\+1\.39%/);
-  assert.equal(payload.item.price, 87500.25);
-  assert.equal(payload.item.ticker, "BTC-USD");
-  assert.equal(payload.item.dayChangePercent, 1.39);
-  assert.equal(payload.item.volume24h, 28500.75);
+  assert.equal(payload.data.price, 87500.25);
+  assert.equal(payload.data.ticker, "BTC-USD");
+  assert.equal(payload.data.dayChangePercent, 1.39);
+  assert.equal(payload.data.volume24h, 28500.75);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.remainingCredits, 97);
+  assert.equal("item" in payload, false);
 });
 
 test("crypto_snapshot formats negative change correctly", async () => {

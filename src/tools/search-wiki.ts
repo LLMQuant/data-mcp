@@ -6,10 +6,6 @@ import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import { topKSchema, wikiQuerySchema } from "../shared/schemas";
 
-function roundScore(value: number) {
-  return Number(value.toFixed(4));
-}
-
 export function registerSearchWikiTool(
   server: McpToolRegistry,
   api: ApiClientProvider,
@@ -29,33 +25,15 @@ export function registerSearchWikiTool(
     execute: async ({ query, topK }, context) => {
       try {
         const response = await getApiClient(api, context).searchWiki({ query, topK });
-        const items = response.data.map((item) => ({
-          wikiItemId: item.wikiItemId,
-          slug: item.slug,
-          title: item.title,
-          summary: item.summary,
-          tags: item.tags,
-          scores: {
-            combined: roundScore(item.combinedScore),
-            semantic: roundScore(item.semanticScore),
-            lexical: roundScore(item.lexicalScore),
-          },
-        }));
-
         const summary =
-          items.length === 0
+          response.data.length === 0
             ? `No wiki results found for "${query}".`
-            : `Found ${items.length} wiki result(s) for "${query}". Use wiki_read with a wikiItemId to load the full entry.`;
+            : `Found ${response.data.length} wiki result(s) for "${query}". Use wiki_read with a wikiItemId to load the full entry.`;
 
         return formatToolResult({
           summary,
-          items,
-          meta: {
-            query,
-            topK: response.meta.topK,
-            creditsUsed: response.meta.creditsUsed,
-            remainingCredits: response.meta.remainingCredits,
-          },
+          data: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

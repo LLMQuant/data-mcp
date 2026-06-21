@@ -15,8 +15,7 @@ export function registerEtfLookupTool(
     description:
       "Look up an ETF's fund identity, SEC mapping (CIK / series_id / class_id), " +
       "latest available SEC N-PORT regulatory snapshot, derived top holdings " +
-      "summary, and source / coverage metadata from LLMQuant Data's currently " +
-      "covered SEC-backed ETF universe.\n\n" +
+      "summary, and source / coverage metadata for currently supported ETFs.\n\n" +
       "Inputs: ticker (case-insensitive; e.g. SPY, QQQ, VTI, SOXX, ARKK) " +
       "and optional as_of (YYYY-MM-DD; returns the latest snapshot at or " +
       "before that date).\n\n" +
@@ -54,7 +53,7 @@ export function registerEtfLookupTool(
             : `${label} SEC N-PORT snapshot as_of_date=${response.data.as_of_date ?? "unknown"} (${coverage_status}).`;
         return formatToolResult({
           summary,
-          item: response.data,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

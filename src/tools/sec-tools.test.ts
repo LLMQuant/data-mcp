@@ -85,7 +85,7 @@ test("sec_filing_browse forwards filings and meta verbatim (no synthesized cover
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    items: Array<{
+    data: Array<{
       filingType: string;
       accessionNumber: string;
       sectionKeys: string[];
@@ -95,12 +95,12 @@ test("sec_filing_browse forwards filings and meta verbatim (no synthesized cover
 
   // No notice present → guidance line built purely from the public data count.
   assert.match(payload.summary, /AAPL: 2 SEC filing/);
-  assert.equal(payload.items.length, 2);
-  assert.equal(payload.items[0]?.filingType, "10-K");
-  assert.equal(payload.items[1]?.accessionNumber, "0000320193-26-000021");
+  assert.equal(payload.data.length, 2);
+  assert.equal(payload.data[0]?.filingType, "10-K");
+  assert.equal(payload.data[1]?.accessionNumber, "0000320193-26-000021");
   // section_keys is surfaced verbatim (thin wrapper, never dropped).
-  assert.deepEqual(payload.items[0]?.sectionKeys, ["1", "1A", "7"]);
-  assert.deepEqual(payload.items[1]?.sectionKeys, []);
+  assert.deepEqual(payload.data[0]?.sectionKeys, ["1", "1A", "7"]);
+  assert.deepEqual(payload.data[1]?.sectionKeys, []);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
   // No coverage / availability fields are read or emitted anymore.
@@ -129,12 +129,12 @@ test("sec_filing_browse forwards meta.notice verbatim on empty result", async ()
       ticker: "AAPL",
       filing_type: "10-K",
     }),
-  ) as { summary: string; items: unknown[]; meta: { notice?: string } };
+  ) as { summary: string; data: unknown[]; meta: { notice?: string } };
 
   // The Web-supplied notice is the human line — MCP forwards it unchanged.
   assert.equal(payload.summary, "We don't currently have 10-K filings for AAPL.");
   assert.equal(payload.meta.notice, "We don't currently have 10-K filings for AAPL.");
-  assert.equal(payload.items.length, 0);
+  assert.equal(payload.data.length, 0);
 });
 
 test("sec_filing_read formats first returned section and preserves metadata", async () => {
@@ -181,7 +181,7 @@ test("sec_filing_read formats first returned section and preserves metadata", as
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    item: { accessionNumber: string | null; items: Array<{ number: string; text: string }> };
+    data: { accessionNumber: string | null; items: Array<{ number: string; text: string }> };
     meta: { creditsUsed: number; remainingCredits: number };
   };
 
@@ -192,13 +192,13 @@ test("sec_filing_read formats first returned section and preserves metadata", as
     payload.summary,
     `AAPL 10-K 1A (Risk Factors) — ${expectedCharCount} chars.`,
   );
-  assert.equal(payload.item.accessionNumber, "0000320193-26-000010");
-  assert.equal(payload.item.items[0]?.number, "1A");
-  assert.equal(payload.item.items[0]?.text.length, 1250);
+  assert.equal(payload.data.accessionNumber, "0000320193-26-000010");
+  assert.equal(payload.data.items[0]?.number, "1A");
+  assert.equal(payload.data.items[0]?.text.length, 1250);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
   // The coverage object is gone from both data and meta.
-  assert.equal("coverage" in payload.item, false);
+  assert.equal("coverage" in payload.data, false);
   assert.equal("coverage" in payload.meta, false);
   assert.doesNotMatch(raw, /coverage|availability|"reason"/);
 });
@@ -236,14 +236,14 @@ test("sec_filing_read forwards meta.notice verbatim when no section text is avai
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    item: { items: unknown[] };
+    data: { items: unknown[] };
     meta: { notice?: string };
   };
 
   // Web's notice IS the human line — forwarded unchanged, no MCP prose.
   assert.equal(payload.summary, NOTICE);
   assert.equal(payload.meta.notice, NOTICE);
-  assert.equal(payload.item.items.length, 0);
+  assert.equal(payload.data.items.length, 0);
   assert.doesNotMatch(raw, /coverage|availability|"reason"/);
 });
 
@@ -455,10 +455,10 @@ test("sec_filing_read accepts an items batch and formats a multi-section summary
       accession_number: "0000320193-26-000050",
       items: ["item2.02", "item9.01"],
     }),
-  ) as { summary: string; item: { items: Array<{ number: string }> } };
+  ) as { summary: string; data: { items: Array<{ number: string }> } };
 
   assert.match(payload.summary, /2 sections \(item2\.02, item9\.01\)/);
-  assert.equal(payload.item.items.length, 2);
+  assert.equal(payload.data.items.length, 2);
 });
 
 test("sec_filing_read rejects an items batch larger than 25 (Issue #326)", () => {

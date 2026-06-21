@@ -26,7 +26,7 @@ function createToolHarness() {
   };
 }
 
-test("paper_search formats items and preserves credit metadata", async () => {
+test("paper_search forwards Web data and preserves credit metadata", async () => {
   const harness = createToolHarness();
   const api = {
     async searchPaper() {
@@ -72,13 +72,16 @@ test("paper_search formats items and preserves credit metadata", async () => {
     }),
   ) as {
     summary: string;
-    items: Array<{ semanticScore: number }>;
-    meta: { creditsUsed: number };
+    data: Array<{ semanticScore: number }>;
+    meta: { topK: number; remainingCredits: number; creditsUsed: number };
   };
 
   assert.match(payload.summary, /Found 1 paper result/);
-  assert.equal(payload.items[0]?.semanticScore, 0.9877);
+  assert.equal(payload.data[0]?.semanticScore, 0.98765);
+  assert.equal(payload.meta.topK, 2);
+  assert.equal(payload.meta.remainingCredits, 9);
   assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal("items" in payload, false);
 });
 
 test("paper_read treats ['all'] as a full-paper request", async () => {
@@ -160,17 +163,15 @@ test("paper_read treats ['all'] as a full-paper request", async () => {
       sections: ["all"],
     }),
   ) as {
+    data: { sections: unknown[] };
     meta: {
-      requestedSections: string[];
-      fullTextRequested: boolean;
-      returnedCharCount: number;
       remainingCredits: number;
     };
   };
 
   assert.equal(receivedSections, undefined);
-  assert.deepEqual(payload.meta.requestedSections, ["all"]);
-  assert.equal(payload.meta.fullTextRequested, true);
-  assert.equal(payload.meta.returnedCharCount, 340);
+  assert.equal(payload.data.sections.length, 2);
   assert.equal(payload.meta.remainingCredits, 9);
+  assert.equal("requestedSections" in payload.meta, false);
+  assert.equal("item" in payload, false);
 });

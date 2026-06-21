@@ -96,7 +96,7 @@ test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdin
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    item: {
+    data: {
       ranking_period: string | null;
       manager: { manager_cik: string; period_rank: number };
       holdings: Array<{ ticker: string | null }>;
@@ -109,10 +109,10 @@ test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdin
   // No notice → guidance line built purely from public data (filing + count).
   assert.match(payload.summary, /2025-12-31/);
   assert.match(payload.summary, /1 holdings/);
-  assert.equal(payload.item.ranking_period, "2025-12-31");
-  assert.equal(payload.item.manager.manager_cik, "1067983");
-  assert.equal(payload.item.manager.period_rank, 7);
-  assert.equal(payload.item.holdings[0]?.ticker, "AXP");
+  assert.equal(payload.data.ranking_period, "2025-12-31");
+  assert.equal(payload.data.manager.manager_cik, "1067983");
+  assert.equal(payload.data.manager.period_rank, 7);
+  assert.equal(payload.data.holdings[0]?.ticker, "AXP");
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
   // scope / scope_notice no longer exist on meta.
@@ -172,13 +172,13 @@ test("sec_13f_list_manager_holdings forwards out-of-scope notice verbatim", asyn
     await harness.get("sec_13f_list_manager_holdings").execute({
       manager_cik: "9999",
     }),
-  ) as { summary: string; item: { holdings: unknown[] }; meta: { notice?: string } };
+  ) as { summary: string; data: { holdings: unknown[] }; meta: { notice?: string } };
 
   // The notice is the human line; MCP no longer derives prose from
   // is_in_covered_manager_set.
   assert.equal(payload.summary, NOTICE);
   assert.equal(payload.meta.notice, NOTICE);
-  assert.equal(payload.item.holdings.length, 0);
+  assert.equal(payload.data.holdings.length, 0);
 });
 
 test("sec_13f_list_ticker_holders forwards (year, quarter) and formats holder summary", async () => {
@@ -225,7 +225,7 @@ test("sec_13f_list_ticker_holders forwards (year, quarter) and formats holder su
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    item: { ticker: string; ranking_period: string | null; total_holders_in_scope: number };
+    data: { ticker: string; ranking_period: string | null; total_holders_in_scope: number };
     meta: { creditsUsed: number; remainingCredits: number; notice?: string };
   };
 
@@ -234,9 +234,9 @@ test("sec_13f_list_ticker_holders forwards (year, quarter) and formats holder su
   // No notice → guidance line built purely from public data (count + period).
   assert.match(payload.summary, /NVDA 2025-12-31/);
   assert.match(payload.summary, /187 holders/);
-  assert.equal(payload.item.ticker, "NVDA");
-  assert.equal(payload.item.ranking_period, "2025-12-31");
-  assert.equal(payload.item.total_holders_in_scope, 187);
+  assert.equal(payload.data.ticker, "NVDA");
+  assert.equal(payload.data.ranking_period, "2025-12-31");
+  assert.equal(payload.data.total_holders_in_scope, 187);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal("scope" in payload.meta, false);
   assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
@@ -270,13 +270,13 @@ test("sec_13f_list_ticker_holders forwards no-hit notice verbatim", async () => 
     await harness.get("sec_13f_list_ticker_holders").execute({
       ticker: "XYZZZ",
     }),
-  ) as { summary: string; item: { holders: unknown[] }; meta: { notice?: string } };
+  ) as { summary: string; data: { holders: unknown[] }; meta: { notice?: string } };
 
   // Web's notice is the human line; MCP no longer branches on
   // total_holders_in_scope to invent "no holders" prose.
   assert.equal(payload.summary, NOTICE);
   assert.equal(payload.meta.notice, NOTICE);
-  assert.equal(payload.item.holders.length, 0);
+  assert.equal(payload.data.holders.length, 0);
 });
 
 test("sec_13f_list_top_managers returns ranked managers using period_rank field", async () => {
@@ -320,7 +320,7 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
   });
   const payload = JSON.parse(raw) as {
     summary: string;
-    item: {
+    data: {
       manager_set_period: string | null;
       ranking_period: string | null;
       managers: Array<{ manager_cik: string; period_rank: number }>;
@@ -332,11 +332,11 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
   // No notice → guidance line built purely from public data.
   assert.match(payload.summary, /Top 2 institutional managers/);
   assert.match(payload.summary, /VANGUARD GROUP INC/);
-  assert.equal(payload.item.manager_set_period, "2025-12-31");
-  assert.equal(payload.item.ranking_period, "2025-12-31");
-  assert.equal(payload.item.managers[0].manager_cik, "102909");
-  assert.equal(payload.item.managers[0].period_rank, 1);
-  assert.equal(payload.item.managers[1].period_rank, 7);
+  assert.equal(payload.data.manager_set_period, "2025-12-31");
+  assert.equal(payload.data.ranking_period, "2025-12-31");
+  assert.equal(payload.data.managers[0].manager_cik, "102909");
+  assert.equal(payload.data.managers[0].period_rank, 1);
+  assert.equal(payload.data.managers[1].period_rank, 7);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal("scope" in payload.meta, false);
   assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
@@ -379,12 +379,12 @@ test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ra
     }),
   ) as {
     summary: string;
-    item: { ranking_period: string | null };
+    data: { ranking_period: string | null };
   };
 
   assert.equal(captured.args?.year, 2025);
   assert.equal(captured.args?.quarter, 3);
-  assert.equal(payload.item.ranking_period, "2025-09-30");
+  assert.equal(payload.data.ranking_period, "2025-09-30");
   assert.match(payload.summary, /2025-09-30/);
 });
 
@@ -416,13 +416,13 @@ test("sec_13f_list_top_managers forwards out-of-window notice verbatim", async (
       year: 2024,
       quarter: 2,
     }),
-  ) as { summary: string; item: { managers: unknown[] }; meta: { notice?: string } };
+  ) as { summary: string; data: { managers: unknown[] }; meta: { notice?: string } };
 
   // Web's notice is the human line; MCP forwards it instead of building a
   // summary from the (now removed) scope.available_ranking_periods field.
   assert.equal(payload.summary, NOTICE);
   assert.equal(payload.meta.notice, NOTICE);
-  assert.equal(payload.item.managers.length, 0);
+  assert.equal(payload.data.managers.length, 0);
 });
 
 test("sec_13f_list_top_managers falls back to a data-only summary when no notice is sent", async () => {

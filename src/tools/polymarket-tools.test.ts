@@ -137,15 +137,14 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
     data: { events: Array<{ eventCardId: string }> };
-    items: Array<{ eventCardId: string }>;
     meta: { creditsUsed: number; scope: string };
   };
 
   assert.match(payload.summary, /Found 1 finance prediction-market event/);
   assert.equal(payload.data.events[0]?.eventCardId, "pme_902959");
-  assert.equal(payload.items[0]?.eventCardId, "pme_902959");
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.scope, "finance");
+  assert.equal("items" in payload, false);
   assert.deepEqual(calls[0], {
     status: "active",
     q: "Bitcoin ETF",
@@ -160,7 +159,7 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
   });
 });
 
-test("polymarket_event_search calls the semantic route and records query metadata", async () => {
+test("polymarket_event_search calls the semantic route and forwards Web metadata", async () => {
   const harness = createToolHarness();
   const calls: unknown[] = [];
   const api = {
@@ -190,14 +189,14 @@ test("polymarket_event_search calls the semantic route and records query metadat
     limit: 5,
   });
   const payload = JSON.parse(await tool.execute(input)) as {
-    items: Array<{ eventCardId: string; semanticScore: number }>;
-    meta: { creditsUsed: number; query: string; limit: number };
+    data: { events: Array<{ eventCardId: string; semanticScore: number }> };
+    meta: { creditsUsed: number };
   };
 
-  assert.equal(payload.items[0]?.semanticScore, 0.91);
+  assert.equal(payload.data.events[0]?.semanticScore, 0.91);
   assert.equal(payload.meta.creditsUsed, 2);
-  assert.equal(payload.meta.query, "Bitcoin ETF approval");
-  assert.equal(payload.meta.limit, 5);
+  assert.equal("query" in payload.meta, false);
+  assert.equal("limit" in payload.meta, false);
   assert.deepEqual(calls[0], {
     query: "Bitcoin ETF approval",
     status: "active_or_recently_closed",
@@ -208,7 +207,7 @@ test("polymarket_event_search calls the semantic route and records query metadat
   });
 });
 
-test("polymarket_event_read and polymarket_market_read return item aliases", async () => {
+test("polymarket_event_read and polymarket_market_read return data only", async () => {
   const harness = createToolHarness();
   const calls: unknown[] = [];
   const api = {
@@ -244,17 +243,19 @@ test("polymarket_event_read and polymarket_market_read return item aliases", asy
     await harness
       .get("polymarket_event_read")
       .execute({ event_card_id: "pme_902959" }),
-  ) as { item: { eventCardId: string }; meta: { creditsUsed: number } };
+  ) as { data: { eventCardId: string }; meta: { creditsUsed: number } };
   const marketPayload = JSON.parse(
     await harness
       .get("polymarket_market_read")
       .execute({ market_card_id: "pmm_253254" }),
-  ) as { item: { marketCardId: string; outcomes: Array<{ outcomeTokenId: string }> } };
+  ) as { data: { marketCardId: string; outcomes: Array<{ outcomeTokenId: string }> } };
 
-  assert.equal(eventPayload.item.eventCardId, "pme_902959");
+  assert.equal(eventPayload.data.eventCardId, "pme_902959");
   assert.equal(eventPayload.meta.creditsUsed, 0);
-  assert.equal(marketPayload.item.marketCardId, "pmm_253254");
-  assert.equal(marketPayload.item.outcomes[0]?.outcomeTokenId, "token-yes");
+  assert.equal(marketPayload.data.marketCardId, "pmm_253254");
+  assert.equal(marketPayload.data.outcomes[0]?.outcomeTokenId, "token-yes");
+  assert.equal("item" in eventPayload, false);
+  assert.equal("item" in marketPayload, false);
   assert.deepEqual(calls, [
     ["event", { eventCardId: "pme_902959" }],
     ["market", { marketCardId: "pmm_253254" }],
@@ -291,14 +292,15 @@ test("polymarket_price_history forwards range and limit without dropping the cap
   });
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
-    item: { outcomeTokenId: string; points: Array<{ probability: number }> };
+    data: { outcomeTokenId: string; points: Array<{ probability: number }> };
     meta: { creditsUsed: number };
   };
 
   assert.match(payload.summary, /1d probability history: 1 point/);
-  assert.equal(payload.item.outcomeTokenId, "token-yes");
-  assert.equal(payload.item.points[0]?.probability, 0.51);
+  assert.equal(payload.data.outcomeTokenId, "token-yes");
+  assert.equal(payload.data.points[0]?.probability, 0.51);
   assert.equal(payload.meta.creditsUsed, 0);
+  assert.equal("item" in payload, false);
   assert.deepEqual(calls[0], {
     outcomeTokenId: "token-yes",
     interval: "1d",

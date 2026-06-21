@@ -71,15 +71,16 @@
 | `polymarket_market_read` | 读取一个预测市场 market 卡片、outcomes 和 outcome token ids | 0 |
 | `polymarket_price_history` | 查询一个 outcome token 的小时或日度隐含概率历史 | 0 |
 | `equity_historical_prices` | 美股日线 OHLCV + 分红/拆股 | 1 |
-| `etf_lookup` | ETF 基本信息 + SEC 映射 + top holdings 摘要（当前覆盖的 SEC-backed universe） | 0 |
-| `etf_holdings` | ETF 最近可用 SEC N-PORT 监管持仓（当前覆盖的 SEC-backed universe） | 1* |
+| `equity_intraday_prices` | 美股 `1h` 常规交易时段 OHLCV bars | 1 |
+| `etf_lookup` | ETF 基本信息 + SEC 映射 + top holdings 摘要（当前支持的 ETF 范围） | 0 |
+| `etf_holdings` | ETF 最近可用 SEC N-PORT 监管持仓（当前支持的 ETF 范围） | 1* |
 | `macro_indicator_search` | 浏览 50+ 精选宏观指标 | 0 |
 | `macro_indicator_history` | 查询宏观指标历史数据 | 1 |
 | `macro_indicator_snapshot` | 获取宏观指标最新值 | 1 |
 | `sec_filing_browse` | 浏览 SEC 10-K / 10-Q / 8-K 财报元数据（每条带 `sectionKeys` = 可读的章节 code） | 0 |
 | `sec_filing_read` | 读取 SEC 财报章节正文；传 `items` 一次取多段、省略则取全部（8-K 需先 browse 拿 `accession_number`） | 1 |
-| `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
-| `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（覆盖 Top 1000 × 至少最近 4 季度） | 1 |
+| `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（covered manager set × 至少最近 4 季度） | 1 |
+| `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（covered manager set × 至少最近 4 季度） | 1 |
 | `sec_13f_list_top_managers` | 按 13F reportable value 列出 Top N smart money 机构（最新季度，最多 1000） | 1 |
 
 预测市场工具按 event-first 流程使用：自然语言发现优先用 `polymarket_event_search`，只有 list / exact-filter 请求才用 `polymarket_event_browse`；再读选中的 event，继续读 market，最后用 outcome token 查概率历史。

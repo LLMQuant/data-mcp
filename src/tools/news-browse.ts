@@ -186,7 +186,7 @@ export function registerNewsBrowseTool(
 
         return formatToolResult({
           summary,
-          items: response.data.items,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

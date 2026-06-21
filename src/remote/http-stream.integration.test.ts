@@ -689,8 +689,8 @@ test("httpStream works with Vercel AI SDK MCP http client for bearer and path to
     const firstPartyTools = await firstPartyClient.tools();
     const pathTokenTools = await pathTokenClient.tools();
 
-    assert.equal(Object.keys(firstPartyTools).length, 23);
-    assert.equal(Object.keys(pathTokenTools).length, 23);
+    assert.equal(Object.keys(firstPartyTools).length, 24);
+    assert.equal(Object.keys(pathTokenTools).length, 24);
 
     const firstPartyResult = await callAiSdkWikiSearch(firstPartyTools);
     const pathTokenResult = await callAiSdkWikiSearch(pathTokenTools);

@@ -58,12 +58,11 @@ export function registerPolymarketPriceHistoryTool(
           endTime: end_time,
           limit,
         });
-        const item = response.data;
+        const data = response.data;
 
         return formatToolResult({
-          summary: `${interval} probability history: ${item.points.length} point(s) (${item.coverageStatus}).`,
-          data: item,
-          item,
+          summary: `${interval} probability history: ${data.points.length} point(s).`,
+          data,
           meta: response.meta,
         });
       } catch (error) {

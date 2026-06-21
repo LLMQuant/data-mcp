@@ -42,17 +42,8 @@ export function registerCryptoSnapshotTool(
 
         return formatToolResult({
           summary,
-          item: {
-            price: d.price,
-            ticker: d.ticker,
-            dayChange: d.dayChange,
-            dayChangePercent: d.dayChangePercent,
-            volume24h: d.volume24h,
-            time: d.time,
-          },
-          meta: {
-            creditsUsed: response.meta.creditsUsed,
-          },
+          data: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

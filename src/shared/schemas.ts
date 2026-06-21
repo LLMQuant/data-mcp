@@ -71,6 +71,42 @@ export const equityLimitSchema = z
   .min(1, "limit must be at least 1.")
   .max(200, "limit must be 200 or less.");
 
+export const equityIntradayIntervalSchema = z.enum(["1h"]);
+
+export const equityIntradayLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(70, "limit must be 70 or less.");
+
+const EQUITY_INTRADAY_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
+
+function isIsoCalendarDate(value: string): boolean {
+  if (!EQUITY_INTRADAY_DATE_RE.test(value)) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = value.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const parsed = new Date(0);
+  parsed.setUTCHours(0, 0, 0, 0);
+  parsed.setUTCFullYear(year, month - 1, day);
+
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+export const equityIntradayDateSchema = z
+  .string()
+  .trim()
+  .regex(EQUITY_INTRADAY_DATE_RE, "date must be in YYYY-MM-DD format.")
+  .refine(isIsoCalendarDate, "date must be a valid YYYY-MM-DD calendar date.");
+
 export const macroIndicatorSchema = z
   .string()
   .trim()

@@ -67,15 +67,8 @@ export function registerCryptoHistoricalTool(
 
         return formatToolResult({
           summary,
-          item: {
-            ticker: response.data.ticker,
-            interval: response.data.interval,
-            prices: response.data.prices,
-          },
-          meta: {
-            count: response.meta.count,
-            creditsUsed: response.meta.creditsUsed,
-          },
+          data: response.data,
+          meta: response.meta,
         });
       } catch (error) {
         throw new Error(describeToolError(error));

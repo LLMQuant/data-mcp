@@ -50,7 +50,7 @@ export function registerSecFilingBrowseTool(
 
         return formatToolResult({
           summary,
-          items: response.data,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

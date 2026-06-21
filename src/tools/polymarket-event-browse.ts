@@ -113,7 +113,6 @@ export function registerPolymarketEventBrowseTool(
               ? "No finance prediction-market events matched the filters."
               : `Found ${count} finance prediction-market event(s).`,
           data: response.data,
-          items: response.data.events,
           meta: response.meta,
         });
       } catch (error) {

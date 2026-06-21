@@ -71,16 +71,17 @@ Configure once — every agent in your stack gets the data.
 | `polymarket_market_read` | Read one Prediction Markets market card with outcomes and outcome token ids | 0 |
 | `polymarket_price_history` | Hourly or daily implied-probability history for one outcome token | 0 |
 | `equity_historical_prices` | US equity daily OHLCV + dividend/split data | 1 |
+| `equity_intraday_prices` | US equity 1h regular-session OHLCV bars | 1 |
 | `macro_indicator_search` | Browse 50+ curated macro indicators | 0 |
 | `macro_indicator_history` | Historical observations for a macro indicator | 1 |
 | `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
 | `sec_filing_browse` | Browse SEC 10-K / 10-Q / 8-K filing metadata (each row carries `sectionKeys` = available section codes) | 0 |
 | `sec_filing_read` | Read section text from a SEC filing; pass `items` to fetch a batch in one call, omit for all (8-K requires `accession_number` — browse first) | 1 |
-| `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (Top 1000 × at least the last 4 quarters) | 1 |
-| `sec_13f_list_ticker_holders` | List institutional holders of a ticker (Top 1000 × at least the last 4 quarters) | 1 |
+| `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (covered manager set × at least the last 4 quarters) | 1 |
+| `sec_13f_list_ticker_holders` | List institutional holders of a ticker (covered manager set × at least the last 4 quarters) | 1 |
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
-| `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently covered SEC-backed universe) | 0 |
-| `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently covered SEC-backed universe) | 1* |
+| `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently supported ETFs) | 0 |
+| `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently supported ETFs) | 1* |
 
 Prediction Markets tools follow an event-first flow: use `polymarket_event_search` first for natural-language discovery, use `polymarket_event_browse` only for list/exact-filter requests, then read a selected event, read a market, and request price history for an outcome token.
 

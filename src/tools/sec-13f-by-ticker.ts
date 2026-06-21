@@ -88,7 +88,7 @@ export function registerSec13fByTickerTool(
 
         return formatToolResult({
           summary,
-          item: response.data,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

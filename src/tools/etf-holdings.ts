@@ -18,7 +18,7 @@ export function registerEtfHoldingsTool(
     name: "etf_holdings",
     description:
       "Retrieve the latest available SEC N-PORT regulatory holdings for an ETF " +
-      "in LLMQuant Data's currently covered SEC-backed ETF universe. Holdings are sorted " +
+      "in LLMQuant Data's currently supported ETF range. Holdings are sorted " +
       "by weight desc and include identifiers (ticker, cusip, isin), shares, " +
       "market_value, and per-row source / as_of_date metadata so agents can " +
       "compute overlap, concentration, and exposure client-side.\n\n" +
@@ -63,7 +63,7 @@ export function registerEtfHoldingsTool(
             : `${normalized} holdings (as_of_date=${response.data.as_of_date ?? "unknown"}, ${response.data.holdings.length} row(s), ${coverage_status}).`;
         return formatToolResult({
           summary,
-          item: response.data,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

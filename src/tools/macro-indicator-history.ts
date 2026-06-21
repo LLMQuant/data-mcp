@@ -75,7 +75,7 @@ export function registerMacroIndicatorHistoryTool(
 
         return formatToolResult({
           summary,
-          item: response.data,
+          data: response.data,
           meta: response.meta,
         });
       } catch (error) {

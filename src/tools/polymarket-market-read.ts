@@ -24,12 +24,11 @@ export function registerPolymarketMarketReadTool(
         const response = await getApiClient(api, context).readPolymarketMarket({
           marketCardId: market_card_id,
         });
-        const item = response.data;
+        const data = response.data;
 
         return formatToolResult({
-          summary: `Loaded Prediction Markets market "${item.marketQuestion}" with ${item.outcomes.length} outcome(s).`,
-          data: item,
-          item,
+          summary: `Loaded Prediction Markets market "${data.marketQuestion}" with ${data.outcomes.length} outcome(s).`,
+          data,
           meta: response.meta,
         });
       } catch (error) {

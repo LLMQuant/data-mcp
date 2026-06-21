@@ -324,7 +324,6 @@ interface EquityHistoricalApiResponse {
     prices: EquityDailyBarApiResult[];
   };
   meta: {
-    count: number;
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -349,7 +348,48 @@ export interface EquityHistoricalResponse {
     prices: EquityDailyBar[];
   };
   meta: {
-    count: number;
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+interface EquityIntradayBarApiResult {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  time: string;
+}
+
+interface EquityIntradayApiResponse {
+  data: {
+    ticker: string;
+    interval: "1h";
+    prices: EquityIntradayBarApiResult[];
+  };
+  meta: {
+    creditsUsed: number;
+    remainingCredits: number;
+  };
+}
+
+export interface EquityIntradayBar {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  time: string;
+}
+
+export interface EquityIntradayResponse {
+  data: {
+    ticker: string;
+    interval: "1h";
+    prices: EquityIntradayBar[];
+  };
+  meta: {
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -1293,6 +1333,42 @@ export class LlmquantWebApiClient {
           time: p.time,
         })),
       },
+      meta: response.meta,
+    };
+  }
+
+  async getEquityIntraday(params: {
+    ticker: string;
+    interval?: "1h";
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<EquityIntradayResponse> {
+    const url = new URL("/api/equity/intraday", this.env.baseUrl);
+    url.searchParams.set("ticker", params.ticker);
+
+    if (params.interval) {
+      url.searchParams.set("interval", params.interval);
+    }
+
+    if (params.startDate) {
+      url.searchParams.set("start_date", params.startDate);
+    }
+
+    if (params.endDate) {
+      url.searchParams.set("end_date", params.endDate);
+    }
+
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+
+    const response = await this.request<EquityIntradayApiResponse>(url, {
+      method: "GET",
+    });
+
+    return {
+      data: response.data,
       meta: response.meta,
     };
   }

@@ -27,7 +27,7 @@ function createToolHarness() {
   };
 }
 
-test("wiki_search formats items with rounded scores and credit metadata", async () => {
+test("wiki_search forwards Web data and credit metadata", async () => {
   const harness = createToolHarness();
   const api = {
     async searchWiki() {
@@ -61,16 +61,18 @@ test("wiki_search formats items with rounded scores and credit metadata", async 
     }),
   ) as {
     summary: string;
-    items: Array<{ scores: { combined: number; semantic: number; lexical: number } }>;
-    meta: { creditsUsed: number; remainingCredits: number };
+    data: Array<{ semanticScore: number; lexicalScore: number; combinedScore: number }>;
+    meta: { topK: number; creditsUsed: number; remainingCredits: number };
   };
 
   assert.match(payload.summary, /Found 1 wiki result/);
-  assert.equal(payload.items[0]?.scores.semantic, 0.9123);
-  assert.equal(payload.items[0]?.scores.lexical, 0.8235);
-  assert.equal(payload.items[0]?.scores.combined, 0.8789);
+  assert.equal(payload.data[0]?.semanticScore, 0.91234);
+  assert.equal(payload.data[0]?.lexicalScore, 0.82345);
+  assert.equal(payload.data[0]?.combinedScore, 0.87891);
+  assert.equal(payload.meta.topK, 5);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 42);
+  assert.equal("items" in payload, false);
 });
 
 test("wiki_search returns appropriate summary when no results found", async () => {
@@ -87,10 +89,11 @@ test("wiki_search returns appropriate summary when no results found", async () =
   registerSearchWikiTool(harness.server, api as never);
   const payload = JSON.parse(
     await harness.get("wiki_search").execute({ query: "nonexistent topic", topK: 5 }),
-  ) as { summary: string; items: unknown[] };
+  ) as { summary: string; data: unknown[] };
 
   assert.match(payload.summary, /No wiki results found/);
-  assert.equal(payload.items.length, 0);
+  assert.equal(payload.data.length, 0);
+  assert.equal("items" in payload, false);
 });
 
 test("wiki_search surfaces API failures without URL context", async () => {
@@ -125,7 +128,7 @@ test("wiki_search surfaces API failures without URL context", async () => {
   );
 });
 
-test("wiki_read returns item with truncation metadata", async () => {
+test("wiki_read forwards item data and Web metadata", async () => {
   const harness = createToolHarness();
   const api = {
     async readWikiItem({ maxLength }: { wikiItemId: string; maxLength?: number }) {
@@ -164,25 +167,21 @@ test("wiki_read returns item with truncation metadata", async () => {
     }),
   ) as {
     summary: string;
-    item: { bodyMarkdown: string };
+    data: { bodyMarkdown: string };
     meta: {
       creditsUsed: number;
       remainingCredits: number;
-      returnedBodyLength: number;
-      possiblyTruncated: boolean;
-      requestedMaxLength: number | null;
     };
   };
 
   assert.match(payload.summary, /Black-Scholes Model/);
+  assert.equal(payload.data.bodyMarkdown.length, 20);
   assert.equal(payload.meta.creditsUsed, 0);
   assert.equal(payload.meta.remainingCredits, 42);
-  assert.equal(payload.meta.returnedBodyLength, 20);
-  assert.equal(payload.meta.possiblyTruncated, true);
-  assert.equal(payload.meta.requestedMaxLength, 20);
+  assert.equal("item" in payload, false);
 });
 
-test("wiki_read reports possiblyTruncated=false when maxLength is not set", async () => {
+test("wiki_read does not add MCP-only truncation metadata", async () => {
   const harness = createToolHarness();
   const api = {
     async readWikiItem() {
@@ -215,13 +214,11 @@ test("wiki_read reports possiblyTruncated=false when maxLength is not set", asyn
     }),
   ) as {
     meta: {
-      possiblyTruncated: boolean;
-      requestedMaxLength: number | null;
       remainingCredits: number;
     };
   };
 
-  assert.equal(payload.meta.possiblyTruncated, false);
-  assert.equal(payload.meta.requestedMaxLength, null);
   assert.equal(payload.meta.remainingCredits, 41);
+  assert.equal("possiblyTruncated" in payload.meta, false);
+  assert.equal("requestedMaxLength" in payload.meta, false);
 });

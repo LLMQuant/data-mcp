@@ -3,6 +3,7 @@ import type { McpToolRegistry } from "./tools/registry";
 import { registerCryptoHistoricalTool } from "./tools/crypto-historical";
 import { registerCryptoSnapshotTool } from "./tools/crypto-snapshot";
 import { registerEquityHistoricalTool } from "./tools/equity-historical";
+import { registerEquityIntradayTool } from "./tools/equity-intraday";
 import { registerEtfHoldingsTool } from "./tools/etf-holdings";
 import { registerEtfLookupTool } from "./tools/etf-lookup";
 import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-history";
@@ -40,6 +41,7 @@ export function registerLlmquantDataTools(
   registerPolymarketMarketReadTool(server, api);
   registerPolymarketPriceHistoryTool(server, api);
   registerEquityHistoricalTool(server, api);
+  registerEquityIntradayTool(server, api);
   registerMacroIndicatorSearchTool(server, api);
   registerMacroIndicatorHistoryTool(server, api);
   registerMacroIndicatorSnapshotTool(server, api);

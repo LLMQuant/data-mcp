@@ -99,14 +99,15 @@ test("news_browse surfaces the trimmed public field set (thin wrapper)", async (
   const input = tool.parameters.parse({ ticker: "NVDA", labels: "domain:ai" });
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
-    items: Array<Record<string, unknown>>;
+    data: { items: Array<Record<string, unknown>> };
     meta: Record<string, unknown>;
   };
 
   assert.match(payload.summary, /NVDA: 1 news article/);
-  assert.equal(payload.items.length, 1);
+  assert.equal(payload.data.items.length, 1);
+  assert.equal("items" in payload, false);
 
-  const item = payload.items[0]!;
+  const item = payload.data.items[0]!;
   // Field set == trimmed public HTTP response (camelCase).
   assert.deepEqual(
     Object.keys(item).sort(),
