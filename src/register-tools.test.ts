@@ -64,6 +64,9 @@ test("registerLlmquantDataTools omits news_browse when NEWS_API_ENABLED is unset
   assert.ok(harness.names.has("polymarket_event_read"));
   assert.ok(harness.names.has("polymarket_market_read"));
   assert.ok(harness.names.has("polymarket_price_history"));
+  // 0-credit personal read tools register regardless of the news flag.
+  assert.ok(harness.names.has("personal_holdings"));
+  assert.ok(harness.names.has("personal_profile"));
 });
 
 test("registerLlmquantDataTools omits news_browse when NEWS_API_ENABLED is not exactly 'true'", () => {

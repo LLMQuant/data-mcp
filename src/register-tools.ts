@@ -10,6 +10,8 @@ import { registerMacroIndicatorHistoryTool } from "./tools/macro-indicator-histo
 import { registerMacroIndicatorSearchTool } from "./tools/macro-indicator-search";
 import { registerMacroIndicatorSnapshotTool } from "./tools/macro-indicator-snapshot";
 import { registerNewsBrowseTool } from "./tools/news-browse";
+import { registerPersonalHoldingsTool } from "./tools/personal-holdings";
+import { registerPersonalProfileTool } from "./tools/personal-profile";
 import { registerPolymarketEventBrowseTool } from "./tools/polymarket-event-browse";
 import { registerPolymarketEventReadTool } from "./tools/polymarket-event-read";
 import { registerPolymarketEventSearchTool } from "./tools/polymarket-event-search";
@@ -52,6 +54,8 @@ export function registerLlmquantDataTools(
   registerSec13fListTopManagersTool(server, api);
   registerEtfLookupTool(server, api);
   registerEtfHoldingsTool(server, api);
+  registerPersonalHoldingsTool(server, api);
+  registerPersonalProfileTool(server, api);
   if (process.env.NEWS_API_ENABLED === "true") {
     registerNewsBrowseTool(server, api);
   }

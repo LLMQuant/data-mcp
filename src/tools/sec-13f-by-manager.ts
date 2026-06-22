@@ -36,9 +36,9 @@ export function registerSec13fByManagerTool(
       "(filing_type, accession_number, filed_at, period_of_report, is_amendment, " +
       "table_entry_total, table_value_total); holdings array sorted by value_usd " +
       "desc. Top-level: data.ranking_period.\n\n" +
-      "Manager-name resolver semantics: 0 candidates → 404 manager_not_found; " +
-      "multiple candidates → 409 manager_name_ambiguous with candidates[]; " +
-      "single match → auto-resolved.\n\n" +
+      "Manager-name resolver semantics: 0 candidates → 200 with empty data and " +
+      "an explanatory notice; multiple candidates → invalid_request asking for " +
+      "manager_cik; single match → auto-resolved.\n\n" +
       "Coverage: limited to the Top 1,000 manager set. " +
       "Out-of-scope manager_cik returns 200 + empty data + an explanatory notice. " +
       "Reportable value is an AUM proxy (excludes fixed income, options, " +

@@ -225,6 +225,22 @@ export const asOfDateSchema = z
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }, "as_of must be a valid calendar date.");
 
+export const personalAssetClassSchema = z.enum([
+  "equity",
+  "etf",
+  "crypto",
+  "cash",
+  "fund",
+  "bond",
+  "other",
+]);
+
+export const personalHoldingsLimitSchema = z
+  .number()
+  .int()
+  .min(1, "limit must be at least 1.")
+  .max(50, "limit must be 50 or less.");
+
 export const polymarketStatusSchema = z.enum([
   "active",
   "inactive",

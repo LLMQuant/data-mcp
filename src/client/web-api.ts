@@ -1007,6 +1007,48 @@ export interface PolymarketPriceHistoryResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Personal (saved holdings + financial profile) types
+// ---------------------------------------------------------------------------
+
+/** Credits envelope for the 0-credit personal read endpoints. */
+interface PersonalMeta {
+  creditsUsed: number;
+  remainingCredits: number;
+}
+
+interface PersonalHoldingApiResult {
+  symbol: string | null;
+  name: string | null;
+  asset_class: string;
+  quantity: number | null;
+  market_value: number | null;
+  cost_basis: number | null;
+  currency: string;
+  as_of_date: string | null;
+}
+
+export interface PersonalHoldingsResponse {
+  data: {
+    total_count: number;
+    holdings: PersonalHoldingApiResult[];
+  };
+  meta: PersonalMeta;
+}
+
+interface PersonalProfileApiResult {
+  risk_preference: string | null;
+  investment_horizon: string | null;
+  base_currency: string;
+  extra_notes: string | null;
+}
+
+export interface PersonalProfileResponse {
+  // null when the caller has not saved a profile (empty data → 200, not error).
+  data: PersonalProfileApiResult | null;
+  meta: PersonalMeta;
+}
+
+// ---------------------------------------------------------------------------
 // News types
 // ---------------------------------------------------------------------------
 
@@ -1886,6 +1928,28 @@ export class LlmquantWebApiClient {
       },
       meta: response.meta,
     };
+  }
+
+  async getPersonalHoldings(params: {
+    assetClass?: string;
+    limit?: number;
+  }): Promise<PersonalHoldingsResponse> {
+    const url = new URL("/api/personal/holdings", this.env.baseUrl);
+    if (params.assetClass) {
+      url.searchParams.set("asset_class", params.assetClass);
+    }
+    if (params.limit != null) {
+      url.searchParams.set("limit", String(params.limit));
+    }
+
+    // Thin wrapper: forward Web's data + meta verbatim (snake_case field set).
+    return this.request<PersonalHoldingsResponse>(url, { method: "GET" });
+  }
+
+  async getPersonalProfile(): Promise<PersonalProfileResponse> {
+    const url = new URL("/api/personal/profile", this.env.baseUrl);
+
+    return this.request<PersonalProfileResponse>(url, { method: "GET" });
   }
 
   private async request<T>(pathOrUrl: string | URL, init: RequestInit) {

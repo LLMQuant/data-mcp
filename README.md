@@ -82,6 +82,8 @@ Configure once — every agent in your stack gets the data.
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
 | `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently supported ETFs) | 0 |
 | `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently supported ETFs) | 1* |
+| `personal_holdings` | Read the holdings you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
+| `personal_profile` | Read the financial profile you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
 
 Prediction Markets tools follow an event-first flow: use `polymarket_event_search` first for natural-language discovery, use `polymarket_event_browse` only for list/exact-filter requests, then read a selected event, read a market, and request price history for an outcome token.
 

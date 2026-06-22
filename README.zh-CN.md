@@ -82,6 +82,8 @@
 | `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（covered manager set × 至少最近 4 季度） | 1 |
 | `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（covered manager set × 至少最近 4 季度） | 1 |
 | `sec_13f_list_top_managers` | 按 13F reportable value 列出 Top N smart money 机构（最新季度，最多 1000） | 1 |
+| `personal_holdings` | 读取你在 LLMQuant Dashboard → Profile 保存的持仓（仅限你自己的账号） | 0 |
+| `personal_profile` | 读取你在 LLMQuant Dashboard → Profile 保存的财务背景（仅限你自己的账号） | 0 |
 
 预测市场工具按 event-first 流程使用：自然语言发现优先用 `polymarket_event_search`，只有 list / exact-filter 请求才用 `polymarket_event_browse`；再读选中的 event，继续读 market，最后用 outcome token 查概率历史。
 
