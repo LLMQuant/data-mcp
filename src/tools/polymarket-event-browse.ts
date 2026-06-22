@@ -57,7 +57,7 @@ const parameters = z
       .trim()
       .min(1)
       .optional()
-      .describe("Opaque pagination token from meta.nextCursor."),
+      .describe("Opaque pagination token from data.nextCursor."),
   })
   .refine(pairedStartEnd, {
     message: "start_time and end_time must be used together.",

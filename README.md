@@ -64,26 +64,28 @@ Configure once — every agent in your stack gets the data.
 | `paper_search` | Semantic search over 1,200+ research papers | 1 |
 | `paper_read` | Read paper sections (intro, methods, conclusion, …) | 0 |
 | `crypto_historical_klines` | Crypto OHLCV candlestick data | 1 |
-| `crypto_snapshot` | Current crypto price + 24h stats | 1 |
+| `crypto_snapshot` | Current crypto price + 24h stats | 0 |
 | `polymarket_event_browse` | List or exact-filter finance-scoped Prediction Markets events by keyword, status, tag, asset, volume, and liquidity filters | 1 |
 | `polymarket_event_search` | Semantic search over finance-scoped Prediction Markets events | 2 |
 | `polymarket_event_read` | Read one Prediction Markets event card with child market previews | 0 |
 | `polymarket_market_read` | Read one Prediction Markets market card with outcomes and outcome token ids | 0 |
 | `polymarket_price_history` | Hourly or daily implied-probability history for one outcome token | 0 |
-| `equity_historical_prices` | US equity daily OHLCV + dividend/split data | 1 |
+| `equity_historical_prices` | US equity daily OHLCV + dividend/split data | 0 |
 | `equity_intraday_prices` | US equity 1h regular-session OHLCV bars | 1 |
 | `macro_indicator_search` | Browse 50+ curated macro indicators | 0 |
 | `macro_indicator_history` | Historical observations for a macro indicator | 1 |
-| `macro_indicator_snapshot` | Latest value for a macro indicator | 1 |
+| `macro_indicator_snapshot` | Latest value for a macro indicator | 0 |
 | `sec_filing_browse` | Browse SEC 10-K / 10-Q / 8-K filing metadata (each row carries `sectionKeys` = available section codes) | 0 |
 | `sec_filing_read` | Read section text from a SEC filing; pass `items` to fetch a batch in one call, omit for all (8-K requires `accession_number` — browse first) | 1 |
 | `sec_13f_list_manager_holdings` | List an institutional manager's 13F holdings (covered manager set × at least the last 4 quarters) | 1 |
 | `sec_13f_list_ticker_holders` | List institutional holders of a ticker (covered manager set × at least the last 4 quarters) | 1 |
-| `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 1 |
+| `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 0 |
 | `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently supported ETFs) | 0 |
 | `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently supported ETFs) | 1* |
 | `personal_holdings` | Read the holdings you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
 | `personal_profile` | Read the financial profile you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
+
+<sub>* An unsupported ticker returns `200` with a coverage envelope and `0` credits — the coverage probe is free; you are only charged the 1 credit when holdings are actually returned.</sub>
 
 Prediction Markets tools follow an event-first flow: use `polymarket_event_search` first for natural-language discovery, use `polymarket_event_browse` only for list/exact-filter requests, then read a selected event, read a market, and request price history for an outcome token.
 

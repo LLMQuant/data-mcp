@@ -123,7 +123,7 @@ const newsBrowseParameters = z
       .min(1)
       .optional()
       .describe(
-        "Opaque pagination token from meta.nextCursor. Pass it back unchanged; discard it when filters change.",
+        "Opaque pagination token from data.nextCursor. Pass it back unchanged; discard it when filters change.",
       ),
   })
   .refine((value) => value.ticker || value.labels || value.source_type, {

@@ -73,10 +73,10 @@ function sampleResponse() {
           },
         },
       ],
-    },
-    meta: {
       count: 1,
       nextCursor: "opaque-token",
+    },
+    meta: {
       creditsUsed: 1,
       remainingCredits: 99,
     },
@@ -99,7 +99,11 @@ test("news_browse surfaces the trimmed public field set (thin wrapper)", async (
   const input = tool.parameters.parse({ ticker: "NVDA", labels: "domain:ai" });
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
-    data: { items: Array<Record<string, unknown>> };
+    data: {
+      items: Array<Record<string, unknown>>;
+      count: number;
+      nextCursor: string | null;
+    };
     meta: Record<string, unknown>;
   };
 
@@ -154,14 +158,13 @@ test("news_browse surfaces the trimmed public field set (thin wrapper)", async (
   const tickers = item.tickers as Array<Record<string, unknown>>;
   assert.equal(tickers[0]?.confidence, 1);
 
-  // meta keeps cursor/credit semantics; provenance keys are gone.
+  // meta is now the credit envelope only; pagination moved into `data`.
   assert.deepEqual(Object.keys(payload.meta).sort(), [
-    "count",
     "creditsUsed",
-    "nextCursor",
     "remainingCredits",
   ]);
-  assert.equal(payload.meta.nextCursor, "opaque-token");
+  assert.equal(payload.data.count, 1);
+  assert.equal(payload.data.nextCursor, "opaque-token");
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
   assert.ok(!("servedFrom" in payload.meta));

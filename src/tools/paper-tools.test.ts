@@ -56,7 +56,6 @@ test("paper_search forwards Web data and preserves credit metadata", async () =>
           },
         ],
         meta: {
-          topK: 2,
           remainingCredits: 9,
           creditsUsed: 1,
         },
@@ -73,12 +72,11 @@ test("paper_search forwards Web data and preserves credit metadata", async () =>
   ) as {
     summary: string;
     data: Array<{ semanticScore: number }>;
-    meta: { topK: number; remainingCredits: number; creditsUsed: number };
+    meta: { remainingCredits: number; creditsUsed: number };
   };
 
   assert.match(payload.summary, /Found 1 paper result/);
   assert.equal(payload.data[0]?.semanticScore, 0.98765);
-  assert.equal(payload.meta.topK, 2);
   assert.equal(payload.meta.remainingCredits, 9);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal("items" in payload, false);

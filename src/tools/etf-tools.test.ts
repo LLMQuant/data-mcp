@@ -307,7 +307,7 @@ test("etf_holdings unsupported path surfaces coverage_status and zero credits", 
       coverage_status: "unsupported" as const,
       coverage_notice: "DRAM is not in current ETF coverage.",
     },
-    meta: { count: 0, limit: 50, creditsUsed: 0, remainingCredits: 7 },
+    meta: { creditsUsed: 0, remainingCredits: 7 },
   };
   const api = {
     async getEtfHoldings() {

@@ -54,7 +54,6 @@ test("crypto_historical_klines formats candle data and preserves metadata", asyn
           ],
         },
         meta: {
-          count: 2,
           creditsUsed: 1,
           remainingCredits: 99,
         },
@@ -72,7 +71,7 @@ test("crypto_historical_klines formats candle data and preserves metadata", asyn
   ) as {
     summary: string;
     data: { ticker: string; interval: string; prices: Array<{ close: number }> };
-    meta: { count: number; creditsUsed: number; remainingCredits: number };
+    meta: { creditsUsed: number; remainingCredits: number };
   };
 
   assert.match(payload.summary, /BTC-USD 1d klines: 2 candle/);
@@ -80,7 +79,6 @@ test("crypto_historical_klines formats candle data and preserves metadata", asyn
   assert.equal(payload.data.interval, "1d");
   assert.equal(payload.data.prices.length, 2);
   assert.equal(payload.data.prices[0]?.close, 87200.0);
-  assert.equal(payload.meta.count, 2);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
   assert.equal("item" in payload, false);
@@ -94,7 +92,7 @@ test("crypto_historical_klines drops `limit` in range mode (regression #280, too
       captured.push(args);
       return {
         data: { ticker: "BTC-USD", interval: "1d", prices: [] },
-        meta: { count: 0, creditsUsed: 1, remainingCredits: 99 },
+        meta: { creditsUsed: 1, remainingCredits: 99 },
       };
     },
   };
@@ -125,7 +123,7 @@ test("crypto_historical_klines forwards `limit` in recent mode", async () => {
       captured.push(args);
       return {
         data: { ticker: "BTC-USD", interval: "1d", prices: [] },
-        meta: { count: 0, creditsUsed: 1, remainingCredits: 99 },
+        meta: { creditsUsed: 1, remainingCredits: 99 },
       };
     },
   };
@@ -148,7 +146,7 @@ test("crypto_historical_klines handles empty result", async () => {
     async getCryptoHistorical() {
       return {
         data: { ticker: "XYZ-USD", interval: "1h", prices: [] },
-        meta: { count: 0, creditsUsed: 1, remainingCredits: 98 },
+        meta: { creditsUsed: 1, remainingCredits: 98 },
       };
     },
   };
@@ -179,7 +177,7 @@ test("crypto_snapshot formats price summary with change percentage", async () =>
           time: "2026-03-30T12:00:00Z",
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 97,
         },
       };
@@ -201,7 +199,7 @@ test("crypto_snapshot formats price summary with change percentage", async () =>
   assert.equal(payload.data.ticker, "BTC-USD");
   assert.equal(payload.data.dayChangePercent, 1.39);
   assert.equal(payload.data.volume24h, 28500.75);
-  assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.creditsUsed, 0);
   assert.equal(payload.meta.remainingCredits, 97);
   assert.equal("item" in payload, false);
 });
@@ -219,7 +217,7 @@ test("crypto_snapshot formats negative change correctly", async () => {
           volume24h: 15000.0,
           time: "2026-03-30T12:00:00Z",
         },
-        meta: { creditsUsed: 1, remainingCredits: 96 },
+        meta: { creditsUsed: 0, remainingCredits: 96 },
       };
     },
   };

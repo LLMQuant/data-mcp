@@ -25,7 +25,7 @@ export function registerSecFilingReadTool(
     description:
       "Read one or more sections from a SEC 10-K, 10-Q, or 8-K filing. This is the second step in the progressive disclosure pattern: " +
       "after sec_filing_browse returns filing metadata (including section_keys), use accession_number or year/quarter to fetch section text. " +
-      'Pass `items` to fetch a batch in one call (1 credit when text is returned), e.g. items=["item2.02","item9.01"]; omit `items` to fetch every available section. ' +
+      'Pass `items` to fetch a batch in one call, e.g. items=["item2.02","item9.01"]; omit `items` to fetch every available section. ' +
       'Common 10-K items: "1", "1A", "7", "8". Common 10-Q items: "part1item2", "part2item1a". ' +
       'Common 8-K items: "item2.02" (earnings press release), "item5.02" (executive changes), "ex99.1" (exhibit). ' +
       "A requested code the filing does not have is dropped from the result (check available_sections); if no requested section is available, the result returns an empty items array with an explanatory notice. " +
@@ -50,7 +50,7 @@ export function registerSecFilingReadTool(
         items: secItemsSchema
           .optional()
           .describe(
-            'Optional batch of section keys (1 credit when text is returned). Examples: 10-K -> ["1A","7","8"]; 10-Q -> ["part1item2","part2item1a"]; 8-K -> ["item2.02","item9.01","ex99.1"]. Codes absent from the filing are dropped (see available_sections). Omit to fetch all available sections. Max 25.',
+            'Optional batch of section keys. Examples: 10-K -> ["1A","7","8"]; 10-Q -> ["part1item2","part2item1a"]; 8-K -> ["item2.02","item9.01","ex99.1"]. Codes absent from the filing are dropped (see available_sections). Omit to fetch all available sections. Max 25.',
           ),
         accession_number: z
           .string()

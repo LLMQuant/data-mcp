@@ -53,7 +53,6 @@ test("searchPaper posts to the paper search route and maps snake_case fields", a
         },
       ],
       meta: {
-        topK: 3,
         remainingCredits: 41,
         creditsUsed: 1,
       },
@@ -75,7 +74,6 @@ test("searchPaper posts to the paper search route and maps snake_case fields", a
 
     const headers = new Headers(calls[0]?.init?.headers);
     assert.equal(headers.get("authorization"), "Bearer test-api-key");
-    assert.equal(response.meta.topK, 3);
     assert.equal(response.meta.remainingCredits, 41);
     assert.deepEqual(response.data[0], {
       paperCardId: "11111111-1111-1111-1111-111111111111",
@@ -129,7 +127,6 @@ test("searchWiki posts to the wiki search route and maps snake_case fields", asy
         },
       ],
       meta: {
-        topK: 5,
         remainingCredits: 42,
         creditsUsed: 1,
       },
@@ -151,7 +148,6 @@ test("searchWiki posts to the wiki search route and maps snake_case fields", asy
     assert.equal(response.data[0]?.wikiItemId, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     assert.equal(response.data[0]?.slug, "black-scholes");
     assert.equal(response.data[0]?.semanticScore, 0.912);
-    assert.equal(response.meta.topK, 5);
     assert.equal(response.meta.creditsUsed, 1);
   } finally {
     globalThis.fetch = originalFetch;
@@ -260,7 +256,7 @@ test("getCryptoHistorical builds query params and returns kline data", async () 
           { open: 87000, high: 87500, low: 86800, close: 87200, volume: 1234, time: "2026-03-28T00:00:00Z" },
         ],
       },
-      meta: { count: 1, creditsUsed: 1, remainingCredits: 99 },
+      meta: { creditsUsed: 1, remainingCredits: 99 },
     });
   }) as typeof fetch;
 
@@ -283,7 +279,6 @@ test("getCryptoHistorical builds query params and returns kline data", async () 
     assert.equal(url.searchParams.get("limit"), "10");
     assert.equal(response.data.ticker, "BTC-USD");
     assert.equal(response.data.prices.length, 1);
-    assert.equal(response.meta.count, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -305,7 +300,7 @@ test("getCryptoSnapshot returns crypto snapshot fields in camelCase (1:1 HTTP pa
         volume24h: 28500.75,
         time: "2026-03-30T12:00:00Z",
       },
-      meta: { creditsUsed: 1, remainingCredits: 97 },
+      meta: { creditsUsed: 0, remainingCredits: 97 },
     });
   }) as typeof fetch;
 
@@ -320,7 +315,7 @@ test("getCryptoSnapshot returns crypto snapshot fields in camelCase (1:1 HTTP pa
     assert.equal(response.data.dayChange, 1200.5);
     assert.equal(response.data.dayChangePercent, 1.39);
     assert.equal(response.data.volume24h, 28500.75);
-    assert.equal(response.meta.creditsUsed, 1);
+    assert.equal(response.meta.creditsUsed, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -360,8 +355,11 @@ test("browsePolymarketEvents builds snake_case params and maps nested fields", a
             ],
           },
         ],
+        count: 1,
+        nextCursor: null,
+        scope: "finance",
       },
-      meta: { count: 1, nextCursor: null, scope: "finance", creditsUsed: 1 },
+      meta: { creditsUsed: 1 },
     });
   }) as typeof fetch;
 
@@ -425,8 +423,10 @@ test("searchPolymarketEvents posts snake_case body and maps scores", async () =>
             markets: [],
           },
         ],
+        count: 1,
+        scope: "finance",
       },
-      meta: { count: 1, creditsUsed: 2, remainingCredits: 98 },
+      meta: { creditsUsed: 2, remainingCredits: 98 },
     });
   }) as typeof fetch;
 
@@ -523,10 +523,11 @@ test("getPolymarketPriceHistory builds query params and maps coverage fields", a
         outcome_token_id: "token-yes",
         interval: "1d",
         points: [{ time: "2024-01-01T00:00:00Z", probability: 0.51, price: 0.51 }],
+        count: 1,
         coverage_status: "partial",
         coverage_notice: "Partial daily coverage.",
       },
-      meta: { count: 1, creditsUsed: 0, remainingCredits: 99 },
+      meta: { creditsUsed: 0, remainingCredits: 99 },
     });
   }) as typeof fetch;
 
@@ -904,14 +905,11 @@ test("getMacroHistorical maps snake_case observations and passes meta through", 
           },
         ],
         attribution: "Source: U.S. Bureau of Labor Statistics via FRED",
+        stale: false,
       },
       meta: {
-        count: 2,
-        stale: false,
         creditsUsed: 1,
         remainingCredits: 31,
-        sourceNotice:
-          "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
       },
     });
   }) as typeof fetch;
@@ -937,12 +935,10 @@ test("getMacroHistorical maps snake_case observations and passes meta through", 
     assert.equal(response.data.units, "Index 1982-1984=100");
     assert.equal(response.data.observations[0]?.realtimeStart, "2026-03-12");
     assert.equal(response.data.observations[0]?.realtimeEnd, "2026-03-12");
+    assert.equal(response.data.stale, false);
 
-    assert.equal(response.meta.count, 2);
-    assert.equal(response.meta.stale, false);
     assert.equal(response.meta.creditsUsed, 1);
     assert.equal(response.meta.remainingCredits, 31);
-    assert.match(response.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -977,10 +973,8 @@ test("getMacroSnapshot maps snake_case latest fields and passes meta through", a
         attribution: "Source: U.S. Bureau of Labor Statistics via FRED",
       },
       meta: {
-        creditsUsed: 1,
+        creditsUsed: 0,
         remainingCredits: 25,
-        sourceNotice:
-          "This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.",
       },
     });
   }) as typeof fetch;
@@ -1001,9 +995,8 @@ test("getMacroSnapshot maps snake_case latest fields and passes meta through", a
     assert.equal(response.data.deltaAbs, 0.1);
     assert.equal(response.data.deltaPct, 2.5);
 
-    assert.equal(response.meta.creditsUsed, 1);
+    assert.equal(response.meta.creditsUsed, 0);
     assert.equal(response.meta.remainingCredits, 25);
-    assert.match(response.meta.sourceNotice, /FRED.*API.*not endorsed or certified/);
   } finally {
     globalThis.fetch = originalFetch;
   }

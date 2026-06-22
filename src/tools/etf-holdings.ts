@@ -29,10 +29,8 @@ export function registerEtfHoldingsTool(
       "isin, asset_type, sector, country, shares, market_value, weight " +
       "(decimal, e.g. 0.065 for 6.5%), notional_value, plus top-level " +
       "source / source_url / as_of_date / fetched_at / stale / " +
-      "coverage_status / coverage_notice fields.\n\n" +
-      "Credit rule: full / partial / stale consume 1 " +
-      "credit; coverage_status=unsupported consumes 0 credits and still " +
-      "returns a coverage envelope (no holdings rows).\n\n" +
+      "coverage_status / coverage_notice fields. coverage_status=unsupported " +
+      "still returns a coverage envelope (no holdings rows).\n\n" +
       "Coverage: regulatory snapshot only — this is the latest available " +
       "SEC N-PORT filing, NOT current daily issuer holdings. Holdings ticker " +
       "is nullable for bonds, cash, derivatives, and non-U.S. positions — " +

@@ -45,7 +45,6 @@ test("wiki_search forwards Web data and credit metadata", async () => {
           },
         ],
         meta: {
-          topK: 5,
           remainingCredits: 42,
           creditsUsed: 1,
         },
@@ -62,14 +61,13 @@ test("wiki_search forwards Web data and credit metadata", async () => {
   ) as {
     summary: string;
     data: Array<{ semanticScore: number; lexicalScore: number; combinedScore: number }>;
-    meta: { topK: number; creditsUsed: number; remainingCredits: number };
+    meta: { creditsUsed: number; remainingCredits: number };
   };
 
   assert.match(payload.summary, /Found 1 wiki result/);
   assert.equal(payload.data[0]?.semanticScore, 0.91234);
   assert.equal(payload.data[0]?.lexicalScore, 0.82345);
   assert.equal(payload.data[0]?.combinedScore, 0.87891);
-  assert.equal(payload.meta.topK, 5);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 42);
   assert.equal("items" in payload, false);
@@ -81,7 +79,7 @@ test("wiki_search returns appropriate summary when no results found", async () =
     async searchWiki() {
       return {
         data: [],
-        meta: { topK: 5, remainingCredits: 41, creditsUsed: 1 },
+        meta: { remainingCredits: 41, creditsUsed: 1 },
       };
     },
   };

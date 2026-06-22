@@ -118,8 +118,11 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
               markets: [{ marketCardId: "pmm_253254", marketQuestion: "Approved?" }],
             },
           ],
+          count: 1,
+          nextCursor: null,
+          scope: "finance",
         },
-        meta: { count: 1, nextCursor: null, scope: "finance", creditsUsed: 1 },
+        meta: { creditsUsed: 1 },
       };
     },
   };
@@ -136,14 +139,14 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
   });
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
-    data: { events: Array<{ eventCardId: string }> };
-    meta: { creditsUsed: number; scope: string };
+    data: { events: Array<{ eventCardId: string }>; scope: string };
+    meta: { creditsUsed: number };
   };
 
   assert.match(payload.summary, /Found 1 finance prediction-market event/);
   assert.equal(payload.data.events[0]?.eventCardId, "pme_902959");
   assert.equal(payload.meta.creditsUsed, 1);
-  assert.equal(payload.meta.scope, "finance");
+  assert.equal(payload.data.scope, "finance");
   assert.equal("items" in payload, false);
   assert.deepEqual(calls[0], {
     status: "active",
@@ -175,8 +178,10 @@ test("polymarket_event_search calls the semantic route and forwards Web metadata
               markets: [],
             },
           ],
+          count: 1,
+          scope: "finance",
         },
-        meta: { count: 1, creditsUsed: 2, remainingCredits: 98 },
+        meta: { creditsUsed: 2, remainingCredits: 98 },
       };
     },
   };
@@ -273,10 +278,11 @@ test("polymarket_price_history forwards range and limit without dropping the cap
           outcomeTokenId: "token-yes",
           interval: "1d",
           points: [{ time: "2024-01-01T00:00:00Z", probability: 0.51, price: 0.51 }],
+          count: 1,
           coverageStatus: "partial",
           coverageNotice: "Partial daily coverage.",
         },
-        meta: { count: 1, creditsUsed: 0, remainingCredits: 99 },
+        meta: { creditsUsed: 0, remainingCredits: 99 },
       };
     },
   };

@@ -307,7 +307,7 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
           ],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 99,
         },
       };
@@ -337,7 +337,7 @@ test("sec_13f_list_top_managers returns ranked managers using period_rank field"
   assert.equal(payload.data.managers[0].manager_cik, "102909");
   assert.equal(payload.data.managers[0].period_rank, 1);
   assert.equal(payload.data.managers[1].period_rank, 7);
-  assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.creditsUsed, 0);
   assert.equal("scope" in payload.meta, false);
   assert.doesNotMatch(raw, /scope_notice|"scope"|available_ranking_periods/);
 });
@@ -363,7 +363,7 @@ test("sec_13f_list_top_managers forwards (year, quarter) for previous-quarter ra
           ],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 99,
         },
       };
@@ -401,7 +401,7 @@ test("sec_13f_list_top_managers forwards out-of-window notice verbatim", async (
           managers: [],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 99,
           notice: NOTICE,
         },
@@ -436,7 +436,7 @@ test("sec_13f_list_top_managers falls back to a data-only summary when no notice
           managers: [],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 99,
         },
       };

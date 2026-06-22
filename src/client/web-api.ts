@@ -36,7 +36,6 @@ interface SearchWikiApiResult {
 interface SearchWikiApiResponse {
   data: SearchWikiApiResult[];
   meta: {
-    topK: number;
     remainingCredits: number;
     creditsUsed: number;
   };
@@ -87,7 +86,6 @@ interface SearchPaperApiResult {
 interface SearchPaperApiResponse {
   data: SearchPaperApiResult[];
   meta: {
-    topK: number;
     remainingCredits: number;
     creditsUsed: number;
   };
@@ -140,7 +138,6 @@ export interface WikiSearchResult {
 export interface WikiSearchResponse {
   data: WikiSearchResult[];
   meta: {
-    topK: number;
     remainingCredits: number;
     creditsUsed: number;
   };
@@ -194,7 +191,6 @@ export interface PaperSearchResult {
 export interface PaperSearchResponse {
   data: PaperSearchResult[];
   meta: {
-    topK: number;
     remainingCredits: number;
     creditsUsed: number;
   };
@@ -256,7 +252,6 @@ interface CryptoHistoricalApiResponse {
     prices: CryptoKlineBarApiResult[];
   };
   meta: {
-    count: number;
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -278,7 +273,6 @@ export interface CryptoHistoricalResponse {
     prices: CryptoKlineBar[];
   };
   meta: {
-    count: number;
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -419,13 +413,18 @@ interface MacroObservationApiResult {
   realtime_end: string;
 }
 
+// Compliant success-envelope meta for the macro catalog (a free endpoint):
+// `{ creditsUsed: 0, remainingCredits, notice? }`. `count` lives in `data` now,
+// and the FRED `sourceNotice` is no longer surfaced on this endpoint's meta.
+interface MacroIndicatorsMeta {
+  creditsUsed: number;
+  remainingCredits: number;
+  notice?: string;
+}
+
 interface MacroIndicatorsApiResponse {
   data: MacroCatalogItemApiResult[];
-  meta: {
-    count: number;
-    creditsUsed: number;
-    sourceNotice: string;
-  };
+  meta: MacroIndicatorsMeta;
 }
 
 interface MacroHistoricalApiResponse {
@@ -437,13 +436,12 @@ interface MacroHistoricalApiResponse {
     units: string;
     observations: MacroObservationApiResult[];
     attribution: string;
+    stale?: boolean;
   };
   meta: {
-    count: number;
-    stale?: boolean;
     creditsUsed: number;
     remainingCredits: number;
-    sourceNotice: string;
+    notice?: string;
   };
 }
 
@@ -463,7 +461,7 @@ interface MacroSnapshotApiResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
-    sourceNotice: string;
+    notice?: string;
   };
 }
 
@@ -482,11 +480,7 @@ export interface MacroCatalogItem {
 
 export interface MacroIndicatorsResponse {
   data: MacroCatalogItem[];
-  meta: {
-    count: number;
-    creditsUsed: number;
-    sourceNotice: string;
-  };
+  meta: MacroIndicatorsMeta;
 }
 
 export interface MacroObservation {
@@ -505,13 +499,12 @@ export interface MacroHistoricalResponse {
     units: string;
     observations: MacroObservation[];
     attribution: string;
+    stale?: boolean;
   };
   meta: {
-    count: number;
-    stale?: boolean;
     creditsUsed: number;
     remainingCredits: number;
-    sourceNotice: string;
+    notice?: string;
   };
 }
 
@@ -531,7 +524,7 @@ export interface MacroSnapshotResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
-    sourceNotice: string;
+    notice?: string;
   };
 }
 
@@ -835,8 +828,6 @@ interface EtfHoldingsApiResponse {
     coverage_notice: string;
   };
   meta: {
-    count: number;
-    limit: number;
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -965,17 +956,20 @@ export interface PolymarketPriceHistoryData {
   outcomeTokenId: string;
   interval: PolymarketPriceInterval;
   points: PolymarketPricePoint[];
+  count: number;
   coverageStatus: string;
   coverageNotice: string;
   [key: string]: unknown;
 }
 
 export interface PolymarketEventsResponse {
-  data: { events: PolymarketEventCard[] };
-  meta: {
+  data: {
+    events: PolymarketEventCard[];
     count: number;
     nextCursor?: string | null;
     scope: string;
+  };
+  meta: {
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -1000,7 +994,6 @@ export interface PolymarketMarketReadResponse {
 export interface PolymarketPriceHistoryResponse {
   data: PolymarketPriceHistoryData;
   meta: {
-    count: number;
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -1089,10 +1082,10 @@ interface NewsArticleApiResult {
 interface NewsBrowseApiResponse {
   data: {
     items: NewsArticleApiResult[];
-  };
-  meta: {
     count: number;
     nextCursor: string | null;
+  };
+  meta: {
     creditsUsed: number;
     remainingCredits: number;
   };
@@ -1130,6 +1123,8 @@ export interface NewsArticle {
 export interface NewsBrowseResponse {
   data: {
     items: NewsArticle[];
+    count: number;
+    nextCursor: string | null;
   };
   meta: NewsBrowseApiResponse["meta"];
 }
@@ -1451,11 +1446,7 @@ export class LlmquantWebApiClient {
         copyrightStatus: item.copyright_status,
         attribution: item.attribution,
       })),
-      meta: {
-        count: response.meta.count,
-        creditsUsed: response.meta.creditsUsed,
-        sourceNotice: response.meta.sourceNotice,
-      },
+      meta: response.meta,
     };
   }
 
@@ -1489,6 +1480,7 @@ export class LlmquantWebApiClient {
           realtimeEnd: o.realtime_end,
         })),
         attribution: response.data.attribution,
+        stale: response.data.stale,
       },
       meta: response.meta,
     };
@@ -1925,6 +1917,8 @@ export class LlmquantWebApiClient {
                   sectionKey: item.filing_ref.section_key,
                 },
         })),
+        count: response.data.count,
+        nextCursor: response.data.nextCursor,
       },
       meta: response.meta,
     };

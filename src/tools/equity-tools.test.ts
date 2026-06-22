@@ -66,7 +66,7 @@ test("equity_historical_prices formats daily bars and preserves metadata", async
           ],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 24,
         },
       };
@@ -97,7 +97,7 @@ test("equity_historical_prices formats daily bars and preserves metadata", async
   assert.equal(payload.data.prices[0]?.adjustedClose, 211.55);
   assert.equal(payload.data.prices[0]?.dividend, 0.24);
   assert.equal(payload.data.prices[1]?.stockSplit, 1);
-  assert.equal(payload.meta.creditsUsed, 1);
+  assert.equal(payload.meta.creditsUsed, 0);
   assert.equal(payload.meta.remainingCredits, 24);
 });
 
@@ -115,7 +115,7 @@ test("equity_historical_prices strips limit when both start_date and end_date ar
       captured.push(params);
       return {
         data: { ticker: "AAPL", interval: "1d", prices: [] },
-        meta: { creditsUsed: 1, remainingCredits: 10 },
+        meta: { creditsUsed: 0, remainingCredits: 10 },
       };
     },
   };
@@ -145,7 +145,7 @@ test("equity_historical_prices forwards limit when no range is provided", async 
       captured.push(params);
       return {
         data: { ticker: "AAPL", interval: "1d", prices: [] },
-        meta: { creditsUsed: 1, remainingCredits: 10 },
+        meta: { creditsUsed: 0, remainingCredits: 10 },
       };
     },
   };
@@ -173,7 +173,7 @@ test("equity_historical_prices handles empty result", async () => {
           prices: [],
         },
         meta: {
-          creditsUsed: 1,
+          creditsUsed: 0,
           remainingCredits: 23,
         },
       };

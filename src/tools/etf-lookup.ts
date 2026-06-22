@@ -24,7 +24,7 @@ export function registerEtfLookupTool(
       "(expense_ratio, aum, nav, market_price, premium_discount_pct, " +
       "inception_date, holdings_count), summary top_holdings (up to 10), " +
       "exposure breakdowns, and source/as_of_date/stale/coverage_status/" +
-      "coverage_notice metadata. meta.creditsUsed is always 0 (lookup is free).\n\n" +
+      "coverage_notice metadata.\n\n" +
       "Coverage semantics: full / partial / stale return profile + identity; " +
       "unsupported returns the registered fund row plus an explicit notice — " +
       "agents should branch on coverage_status rather than treating an empty " +
