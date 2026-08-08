@@ -39,7 +39,9 @@ export function registerSec13fByManagerTool(
       "Manager-name resolver semantics: 0 candidates → 200 with empty data and " +
       "an explanatory notice; multiple candidates → invalid_request asking for " +
       "manager_cik; single match → auto-resolved.\n\n" +
-      "Coverage: limited to the Top 1,000 manager set. " +
+      "Coverage: limited to the requested quarter's covered Top 1,000 manager set " +
+      "(each quarter has its own set, and an older quarter's results stay stable " +
+      "when a newer quarter is released). " +
       "Out-of-scope manager_cik returns 200 + empty data + an explanatory notice. " +
       "Reportable value is an AUM proxy (excludes fixed income, options, " +
       "non-U.S. holdings, shorts).\n\n" +

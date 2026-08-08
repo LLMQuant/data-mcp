@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
-import { topKSchema, wikiQuerySchema } from "../shared/schemas";
+import { searchLimitSchema, wikiQuerySchema } from "../shared/schemas";
 
 export function registerSearchWikiTool(
   server: McpToolRegistry,
@@ -18,13 +18,13 @@ export function registerSearchWikiTool(
       query: wikiQuerySchema.describe(
         "Search query. Maximum length is 2000 characters.",
       ),
-      topK: topKSchema
+      limit: searchLimitSchema
         .describe("Number of results to return. Defaults to 5 and cannot exceed 10.")
         .default(5),
     }),
-    execute: async ({ query, topK }, context) => {
+    execute: async ({ query, limit }, context) => {
       try {
-        const response = await getApiClient(api, context).searchWiki({ query, topK });
+        const response = await getApiClient(api, context).searchWiki({ query, limit });
         const summary =
           response.data.length === 0
             ? `No wiki results found for "${query}".`

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
-import { searchQuerySchema, topKSchema } from "../shared/schemas";
+import { searchLimitSchema, searchQuerySchema } from "../shared/schemas";
 
 export function registerSearchPaperTool(
   server: McpToolRegistry,
@@ -18,13 +18,13 @@ export function registerSearchPaperTool(
       query: searchQuerySchema.describe(
         "Search query. Maximum length is 2000 characters.",
       ),
-      topK: topKSchema
+      limit: searchLimitSchema
         .describe("Number of results to return. Defaults to 5 and cannot exceed 10.")
         .default(5),
     }),
-    execute: async ({ query, topK }, context) => {
+    execute: async ({ query, limit }, context) => {
       try {
-        const response = await getApiClient(api, context).searchPaper({ query, topK });
+        const response = await getApiClient(api, context).searchPaper({ query, limit });
         const summary =
           response.data.length === 0
             ? `No paper results found for "${query}".`

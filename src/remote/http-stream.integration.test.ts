@@ -124,7 +124,7 @@ function createFakeWebApi({
         body += String(chunk);
       });
       request.on("end", () => {
-        const payload = JSON.parse(body) as { query?: string; topK?: number };
+        const payload = JSON.parse(body) as { query?: string; limit?: number };
         dataRequests.push({
           body: payload,
           headers: request.headers,
@@ -148,7 +148,7 @@ function createFakeWebApi({
               },
             ],
             meta: {
-              topK: payload.topK ?? 1,
+              limit: payload.limit ?? 1,
               creditsUsed: 1,
               remainingCredits: 99,
             },
@@ -275,7 +275,7 @@ async function callAiSdkWikiSearch(
   assert.ok(wikiSearch?.execute);
 
   const result = await wikiSearch.execute(
-    { query: "risk parity", topK: 1 },
+    { query: "risk parity", limit: 1 },
     {},
   );
   assert.notEqual(result.isError, true);
@@ -649,15 +649,7 @@ test("httpStream works with Vercel AI SDK MCP http client for bearer and path to
     }),
     enablePathTokenProxy: true,
   };
-  // Enable the gated news_browse tool so the listing reflects the full tool set.
-  const previousNewsApiEnabled = process.env.NEWS_API_ENABLED;
-  process.env.NEWS_API_ENABLED = "true";
   const mcpServer = createMcpServer(env);
-  if (previousNewsApiEnabled === undefined) {
-    delete process.env.NEWS_API_ENABLED;
-  } else {
-    process.env.NEWS_API_ENABLED = previousNewsApiEnabled;
-  }
   await mcpServer.start({
     transportType: "httpStream",
     httpStream: {

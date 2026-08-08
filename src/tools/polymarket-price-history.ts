@@ -5,12 +5,14 @@ import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
+  earliestHasStartTime,
   polymarketIsoDateTimeSchema,
   polymarketOutcomeTokenSchema,
   polymarketPriceIntervalSchema,
   polymarketPriceLimitSchema,
+  takeFromSchema,
 } from "../shared/schemas";
-import { orderedStartEnd, pairedStartEnd } from "./polymarket-shared";
+import { orderedStartEnd } from "./polymarket-shared";
 
 const parameters = z
   .object({
@@ -22,19 +24,26 @@ const parameters = z
     ),
     start_time: polymarketIsoDateTimeSchema
       .optional()
-      .describe("Optional ISO 8601 UTC range start. Must be used with end_time."),
+      .describe("Inclusive ISO 8601 UTC window start."),
     end_time: polymarketIsoDateTimeSchema
       .optional()
-      .describe("Optional ISO 8601 UTC range end. Must be used with start_time."),
+      .describe("Inclusive ISO 8601 UTC window end."),
     limit: polymarketPriceLimitSchema
       .optional()
-      .describe("Optional maximum probability points to return. Max: 20000."),
-  })
-  .refine(pairedStartEnd, {
-    message: "start_time and end_time must be used together.",
+      .describe(
+        "Maximum probability points to keep after time filtering. Defaults by interval: 1h=720, 1d=365. Max: 20000.",
+      ),
+    take_from: takeFromSchema
+      .default("latest")
+      .describe(
+        'Which side of the filtered window to keep when more than limit points match. Default: "latest".',
+      ),
   })
   .refine(orderedStartEnd, {
     message: "start_time must not be after end_time.",
+  })
+  .refine(earliestHasStartTime, {
+    message: "take_from=earliest requires start_time.",
   });
 
 export function registerPolymarketPriceHistoryTool(
@@ -44,19 +53,28 @@ export function registerPolymarketPriceHistoryTool(
   server.addTool({
     name: "polymarket_price_history",
     description:
-      "Retrieve hourly or daily implied-probability points for one Prediction Markets outcome token. Returns probability points, not OHLCV candles, order book data, or trading-grade quotes.",
+      "Retrieve hourly or daily implied-probability points for one Prediction Markets outcome token by point time. " +
+      "Use start_time/end_time to bound the window; single boundaries are allowed. " +
+      "limit keeps at most N points, take_from chooses latest or earliest candidates, and results return oldest first. " +
+      "Use polymarket_market_read first to find outcome_token_id.",
     parameters,
     execute: async (
-      { outcome_token_id, interval, start_time, end_time, limit },
+      { outcome_token_id, interval, start_time, end_time, limit, take_from },
       context,
     ) => {
       try {
+        const effectiveTakeFrom = take_from ?? "latest";
+        if (effectiveTakeFrom === "earliest" && !start_time) {
+          throw new Error("take_from=earliest requires start_time.");
+        }
+
         const response = await getApiClient(api, context).getPolymarketPriceHistory({
           outcomeTokenId: outcome_token_id,
           interval,
           startTime: start_time,
           endTime: end_time,
           limit,
+          takeFrom: effectiveTakeFrom,
         });
         const data = response.data;
 

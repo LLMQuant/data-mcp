@@ -29,8 +29,10 @@ function createToolHarness() {
 
 test("wiki_search forwards Web data and credit metadata", async () => {
   const harness = createToolHarness();
+  const calls: unknown[] = [];
   const api = {
-    async searchWiki() {
+    async searchWiki(params: unknown) {
+      calls.push(params);
       return {
         data: [
           {
@@ -56,7 +58,7 @@ test("wiki_search forwards Web data and credit metadata", async () => {
   const payload = JSON.parse(
     await harness.get("wiki_search").execute({
       query: "option pricing",
-      topK: 5,
+      limit: 5,
     }),
   ) as {
     summary: string;
@@ -71,6 +73,7 @@ test("wiki_search forwards Web data and credit metadata", async () => {
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 42);
   assert.equal("items" in payload, false);
+  assert.deepEqual(calls[0], { query: "option pricing", limit: 5 });
 });
 
 test("wiki_search returns appropriate summary when no results found", async () => {
@@ -86,7 +89,7 @@ test("wiki_search returns appropriate summary when no results found", async () =
 
   registerSearchWikiTool(harness.server, api as never);
   const payload = JSON.parse(
-    await harness.get("wiki_search").execute({ query: "nonexistent topic", topK: 5 }),
+    await harness.get("wiki_search").execute({ query: "nonexistent topic", limit: 5 }),
   ) as { summary: string; data: unknown[] };
 
   assert.match(payload.summary, /No wiki results found/);
@@ -115,7 +118,7 @@ test("wiki_search surfaces API failures without URL context", async () => {
     () =>
       harness.get("wiki_search").execute({
         query: "option pricing",
-        topK: 5,
+        limit: 5,
       }),
     (error: unknown) => {
       assert.ok(error instanceof Error);

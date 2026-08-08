@@ -63,13 +63,13 @@ test("searchPaper posts to the paper search route and maps snake_case fields", a
     const client = new LlmquantWebApiClient(env);
     const response = await client.searchPaper({
       query: "transformer finance",
-      topK: 3,
+      limit: 3,
     });
 
     assert.equal(calls[0]?.url, "https://api.llmquantdata.test/api/paper/search");
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
       query: "transformer finance",
-      topK: 3,
+      limit: 3,
     });
 
     const headers = new Headers(calls[0]?.init?.headers);
@@ -135,12 +135,12 @@ test("searchWiki posts to the wiki search route and maps snake_case fields", asy
 
   try {
     const client = new LlmquantWebApiClient(env);
-    const response = await client.searchWiki({ query: "option pricing", topK: 5 });
+    const response = await client.searchWiki({ query: "option pricing", limit: 5 });
 
     assert.equal(calls[0]?.url, "https://api.llmquantdata.test/api/wiki/search");
     assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)), {
       query: "option pricing",
-      topK: 5,
+      limit: 5,
     });
 
     const headers = new Headers(calls[0]?.init?.headers);
@@ -268,6 +268,7 @@ test("getCryptoHistorical builds query params and returns kline data", async () 
       startTime: "2026-03-28T00:00:00Z",
       endTime: "2026-03-29T00:00:00Z",
       limit: 10,
+      takeFrom: "earliest",
     });
 
     const url = new URL(calls[0]!.url);
@@ -277,6 +278,7 @@ test("getCryptoHistorical builds query params and returns kline data", async () 
     assert.equal(url.searchParams.get("start_time"), "2026-03-28T00:00:00Z");
     assert.equal(url.searchParams.get("end_time"), "2026-03-29T00:00:00Z");
     assert.equal(url.searchParams.get("limit"), "10");
+    assert.equal(url.searchParams.get("take_from"), "earliest");
     assert.equal(response.data.ticker, "BTC-USD");
     assert.equal(response.data.prices.length, 1);
   } finally {
@@ -316,6 +318,59 @@ test("getCryptoSnapshot returns crypto snapshot fields in camelCase (1:1 HTTP pa
     assert.equal(response.data.dayChangePercent, 1.39);
     assert.equal(response.data.volume24h, 28500.75);
     assert.equal(response.meta.creditsUsed, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getEquityHistorical builds date window, limit, and take_from query params", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: {
+        ticker: "AAPL",
+        interval: "1d",
+        prices: [
+          {
+            open: 210.12,
+            high: 212.45,
+            low: 209.8,
+            close: 211.55,
+            volume: 52345678,
+            adjusted_close: 211.55,
+            dividend: 0.24,
+            stock_split: 1,
+            time: "2026-04-08",
+          },
+        ],
+      },
+      meta: { creditsUsed: 1, remainingCredits: 99 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getEquityHistorical({
+      ticker: "AAPL",
+      startDate: "2026-04-01",
+      endDate: "2026-04-30",
+      limit: 10,
+      takeFrom: "earliest",
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/equity/historical");
+    assert.equal(url.searchParams.get("ticker"), "AAPL");
+    assert.equal(url.searchParams.get("start_date"), "2026-04-01");
+    assert.equal(url.searchParams.get("end_date"), "2026-04-30");
+    assert.equal(url.searchParams.get("limit"), "10");
+    assert.equal(url.searchParams.get("take_from"), "earliest");
+    assert.equal(response.data.prices[0]?.adjustedClose, 211.55);
+    assert.equal(response.data.prices[0]?.stockSplit, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -367,7 +422,7 @@ test("browsePolymarketEvents builds snake_case params and maps nested fields", a
     const client = new LlmquantWebApiClient(env);
     const response = await client.browsePolymarketEvents({
       status: "active",
-      q: "Bitcoin ETF",
+      query: "Bitcoin ETF",
       tag: "crypto",
       asset: "BTC",
       startTime: "2026-01-01T00:00:00Z",
@@ -381,7 +436,7 @@ test("browsePolymarketEvents builds snake_case params and maps nested fields", a
     const url = new URL(calls[0]!.url);
     assert.equal(url.pathname, "/api/polymarket/events");
     assert.equal(url.searchParams.get("status"), "active");
-    assert.equal(url.searchParams.get("q"), "Bitcoin ETF");
+    assert.equal(url.searchParams.get("query"), "Bitcoin ETF");
     assert.equal(url.searchParams.get("tag"), "crypto");
     assert.equal(url.searchParams.get("asset"), "BTC");
     assert.equal(url.searchParams.get("start_time"), "2026-01-01T00:00:00Z");
@@ -436,8 +491,6 @@ test("searchPolymarketEvents posts snake_case body and maps scores", async () =>
       query: "Bitcoin ETF approval",
       status: "active_or_recently_closed",
       tag: "crypto",
-      startTime: "2024-01-01T00:00:00Z",
-      endTime: "2024-02-01T00:00:00Z",
       limit: 5,
     });
 
@@ -446,8 +499,6 @@ test("searchPolymarketEvents posts snake_case body and maps scores", async () =>
       query: "Bitcoin ETF approval",
       status: "active_or_recently_closed",
       tag: "crypto",
-      start_time: "2024-01-01T00:00:00Z",
-      end_time: "2024-02-01T00:00:00Z",
       limit: 5,
     });
     assert.equal(response.data.events[0]?.semanticScore, 0.91);
@@ -539,6 +590,7 @@ test("getPolymarketPriceHistory builds query params and maps coverage fields", a
       startTime: "2024-01-01T00:00:00Z",
       endTime: "2024-01-15T00:00:00Z",
       limit: 10,
+      takeFrom: "earliest",
     });
 
     const url = new URL(calls[0]!.url);
@@ -548,6 +600,7 @@ test("getPolymarketPriceHistory builds query params and maps coverage fields", a
     assert.equal(url.searchParams.get("start_time"), "2024-01-01T00:00:00Z");
     assert.equal(url.searchParams.get("end_time"), "2024-01-15T00:00:00Z");
     assert.equal(url.searchParams.get("limit"), "10");
+    assert.equal(url.searchParams.get("take_from"), "earliest");
     assert.equal(response.data.outcomeTokenId, "token-yes");
     assert.equal(response.data.coverageStatus, "partial");
     assert.equal(response.data.coverageNotice, "Partial daily coverage.");
@@ -573,7 +626,7 @@ test("request forwards Web's { error: { code, message } } envelope verbatim", as
     const client = new LlmquantWebApiClient(env);
 
     await assert.rejects(
-      () => client.searchWiki({ query: "option pricing", topK: 5 }),
+      () => client.searchWiki({ query: "option pricing", limit: 5 }),
       (error: unknown) => {
         assert.ok(error instanceof LlmquantApiError);
         // Web owns public phrasing; MCP surfaces its message + code unchanged.
@@ -608,7 +661,7 @@ test("request forwards Web's 5xx error message instead of rephrasing it", async 
     const client = new LlmquantWebApiClient(env);
 
     await assert.rejects(
-      () => client.searchWiki({ query: "option pricing", topK: 5 }),
+      () => client.searchWiki({ query: "option pricing", limit: 5 }),
       (error: unknown) => {
         assert.ok(error instanceof LlmquantApiError);
         assert.equal(
@@ -640,7 +693,7 @@ test("request fails closed with a generic message when Web sends a non-JSON / ma
     const client = new LlmquantWebApiClient(env);
 
     await assert.rejects(
-      () => client.searchWiki({ query: "option pricing", topK: 5 }),
+      () => client.searchWiki({ query: "option pricing", limit: 5 }),
       (error: unknown) => {
         assert.ok(error instanceof LlmquantApiError);
         assert.equal(
@@ -921,6 +974,7 @@ test("getMacroHistorical maps snake_case observations and passes meta through", 
       startDate: "2026-02-01",
       endDate: "2026-03-31",
       limit: 60,
+      takeFrom: "earliest",
     });
 
     const url = new URL(calls[0]!.url);
@@ -929,6 +983,7 @@ test("getMacroHistorical maps snake_case observations and passes meta through", 
     assert.equal(url.searchParams.get("start_date"), "2026-02-01");
     assert.equal(url.searchParams.get("end_date"), "2026-03-31");
     assert.equal(url.searchParams.get("limit"), "60");
+    assert.equal(url.searchParams.get("take_from"), "earliest");
 
     assert.equal(response.data.seriesId, "CPIAUCSL");
     assert.equal(response.data.frequency, "Monthly");
@@ -1002,6 +1057,50 @@ test("getMacroSnapshot maps snake_case latest fields and passes meta through", a
   }
 });
 
+test("getSecFilingBrowse builds filing date filters and maps filing fields", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+
+    return jsonResponse({
+      data: [
+        {
+          ticker: "AAPL",
+          company_name: "Apple Inc.",
+          filing_type: "8-K",
+          accession_number: "0000320193-26-000050",
+          filing_date: "2026-06-01",
+          report_date: null,
+          url: "https://www.sec.gov/Archives/test",
+          section_keys: ["item2.02"],
+        },
+      ],
+      meta: { creditsUsed: 1, remainingCredits: 99 },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getSecFilingBrowse({
+      ticker: "AAPL",
+      filingType: "8-K",
+      limit: 5,
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/filings");
+    assert.equal(url.searchParams.get("ticker"), "AAPL");
+    assert.equal(url.searchParams.get("filing_type"), "8-K");
+    assert.equal(url.searchParams.get("limit"), "5");
+    assert.equal(response.data[0]?.filingType, "8-K");
+    assert.deepEqual(response.data[0]?.sectionKeys, ["item2.02"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("getEquityIntraday builds URL and preserves intraday fields", async () => {
   const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
   const originalFetch = globalThis.fetch;
@@ -1038,6 +1137,8 @@ test("getEquityIntraday builds URL and preserves intraday fields", async () => {
       interval: "1h",
       startDate: "2026-06-17",
       endDate: "2026-06-18",
+      limit: 35,
+      takeFrom: "earliest",
     });
 
     const url = new URL(calls[0]!.url);
@@ -1046,7 +1147,8 @@ test("getEquityIntraday builds URL and preserves intraday fields", async () => {
     assert.equal(url.searchParams.get("interval"), "1h");
     assert.equal(url.searchParams.get("start_date"), "2026-06-17");
     assert.equal(url.searchParams.get("end_date"), "2026-06-18");
-    assert.equal(url.searchParams.has("limit"), false);
+    assert.equal(url.searchParams.get("limit"), "35");
+    assert.equal(url.searchParams.get("take_from"), "earliest");
 
     const headers = new Headers(calls[0]?.init?.headers);
     assert.equal(headers.get("authorization"), "Bearer test-api-key");
@@ -1054,6 +1156,62 @@ test("getEquityIntraday builds URL and preserves intraday fields", async () => {
     assert.equal(response.data.prices[0]?.time, "2026-06-18T13:30:00Z");
     assert.equal(response.meta.creditsUsed, 1);
     assert.equal(response.meta.remainingCredits, 41);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("getNewsBrowse maps array filters to the new route and preserves data/meta", async () => {
+  const calls: Array<{ url: string }> = [];
+  const originalFetch = globalThis.fetch;
+  const payload = {
+    data: {
+      items: [
+        {
+          title: "NVIDIA Announces Results",
+          abstract: "Revenue increased.",
+          summary: "NVIDIA reported higher revenue.",
+          events: ["earnings"],
+          topics: ["artificial_intelligence"],
+          tickers: ["NVDA"],
+          published_at: "2026-06-01",
+          source_url: "https://www.sec.gov/Archives/test",
+        },
+      ],
+      count: 1,
+    },
+    meta: {
+      creditsUsed: 1,
+      remainingCredits: 41,
+      notice: "More matching news is available; narrow the date range.",
+    },
+  };
+
+  globalThis.fetch = (async (input) => {
+    calls.push({ url: String(input) });
+    return jsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new LlmquantWebApiClient(env);
+    const response = await client.getNewsBrowse({
+      tickers: ["NVDA", "AAPL"],
+      events: ["earnings", "guidance"],
+      topics: ["artificial_intelligence"],
+      startDate: "2026-06-01",
+      endDate: "2026-06-30",
+      limit: 5,
+    });
+
+    const url = new URL(calls[0]!.url);
+    assert.equal(url.pathname, "/api/news/browse");
+    assert.equal(url.searchParams.get("tickers"), "NVDA,AAPL");
+    assert.equal(url.searchParams.get("events"), "earnings,guidance");
+    assert.equal(url.searchParams.get("topics"), "artificial_intelligence");
+    assert.equal(url.searchParams.get("start_date"), "2026-06-01");
+    assert.equal(url.searchParams.get("end_date"), "2026-06-30");
+    assert.equal(url.searchParams.get("limit"), "5");
+    assert.deepEqual(response, payload);
   } finally {
     globalThis.fetch = originalFetch;
   }

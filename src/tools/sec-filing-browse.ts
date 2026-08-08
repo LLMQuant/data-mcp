@@ -17,10 +17,10 @@ export function registerSecFilingBrowseTool(
   server.addTool({
     name: "sec_filing_browse",
     description:
-      "Browse SEC filings (10-K, 10-Q, and 8-K) for a U.S. ticker. Returns filing metadata only, not section text. " +
-      "This is the first step in the progressive disclosure pattern: use browse to discover filings, " +
-      "then call sec_filing_read to fetch one section. For 8-K (which has many filings per year and no " +
-      "year/quarter lookup), browse first to obtain the accession_number, then read by accession_number. " +
+      "Browse SEC filing metadata for a U.S. ticker by filing date. " +
+      "Filter by filing_type when needed; results are newest first. " +
+      "Use sec_filing_read with an accession_number or period selector to fetch filing sections. " +
+      "8-K is event-driven: browse first and pass accession_number to sec_filing_read; year/quarter cannot locate an 8-K. " +
       "This is not a semantic search tool.",
     parameters: z.object({
       ticker: equityTickerSchema.describe(

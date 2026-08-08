@@ -209,7 +209,6 @@ test("macro_indicator_history surfaces stale flag when data refresh failed", asy
 });
 
 test("macro_indicator_history forwards limit when range is not set", async () => {
-  // Recent mode: limit must reach the API client untouched.
   const harness = createToolHarness();
   const calls: Array<Record<string, unknown>> = [];
   const api = {
@@ -238,14 +237,12 @@ test("macro_indicator_history forwards limit when range is not set", async () =>
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.limit, 24);
+  assert.equal(calls[0]!.takeFrom, "latest");
   assert.equal(calls[0]!.startDate, undefined);
   assert.equal(calls[0]!.endDate, undefined);
 });
 
-test("macro_indicator_history drops limit when start_date + end_date are set (regression #281)", async () => {
-  // Range mode: tool description promises "limit ignored when
-  // start_date/end_date are set". Per contexts/mcp/design/tool-expansion.md §十一
-  // the MCP layer must enforce that contract, not delegate to the web layer.
+test("macro_indicator_history forwards limit and take_from with date boundaries", async () => {
   const harness = createToolHarness();
   const calls: Array<Record<string, unknown>> = [];
   const api = {
@@ -271,20 +268,52 @@ test("macro_indicator_history drops limit when start_date + end_date are set (re
     indicator: "us.gdp.real",
     start_date: "2010-01-01",
     end_date: "2024-01-01",
-    limit: 30, // Caller-provided; MCP MUST drop it in range mode.
+    limit: 30,
+    take_from: "earliest",
   });
 
   assert.equal(calls.length, 1);
-  // The actual contract: limit becomes undefined when both dates are set.
-  assert.equal(calls[0]!.limit, undefined);
+  assert.equal(calls[0]!.limit, 30);
+  assert.equal(calls[0]!.takeFrom, "earliest");
   assert.equal(calls[0]!.startDate, "2010-01-01");
   assert.equal(calls[0]!.endDate, "2024-01-01");
 });
 
-test("macro_indicator_search formats catalog results and preserves metadata", async () => {
+test("macro_indicator_history guards earliest without start_date and reversed ranges", async () => {
   const harness = createToolHarness();
   const api = {
-    async getMacroIndicators() {
+    async getMacroHistorical() {
+      throw new Error("should not call Web API");
+    },
+  };
+
+  registerMacroIndicatorHistoryTool(harness.server, api as never);
+  await assert.rejects(
+    () =>
+      harness.get("macro_indicator_history").execute({
+        indicator: "us.gdp.real",
+        end_date: "2024-01-01",
+        take_from: "earliest",
+      }),
+    /requires start_date/,
+  );
+  await assert.rejects(
+    () =>
+      harness.get("macro_indicator_history").execute({
+        indicator: "us.gdp.real",
+        start_date: "2024-01-01",
+        end_date: "2010-01-01",
+      }),
+    /start_date must not be after end_date/,
+  );
+});
+
+test("macro_indicator_search formats catalog results and preserves metadata", async () => {
+  const harness = createToolHarness();
+  const calls: unknown[] = [];
+  const api = {
+    async getMacroIndicators(params: unknown) {
+      calls.push(params);
       return {
         data: [
           {
@@ -327,6 +356,7 @@ test("macro_indicator_search formats catalog results and preserves metadata", as
   const payload = JSON.parse(
     await harness.get("macro_indicator_search").execute({
       category: "Labor",
+      query: "jobs",
       limit: 2,
     }),
   ) as {
@@ -342,6 +372,12 @@ test("macro_indicator_search formats catalog results and preserves metadata", as
   assert.equal(payload.data[0]?.category, "Labor");
   assert.equal(payload.meta.creditsUsed, 0);
   assert.equal(payload.meta.remainingCredits, 31);
+  assert.deepEqual(calls[0], {
+    query: "jobs",
+    category: "Labor",
+    frequency: undefined,
+    limit: 2,
+  });
 });
 
 test("macro_indicator_search handles empty result", async () => {
@@ -361,7 +397,7 @@ test("macro_indicator_search handles empty result", async () => {
   registerMacroIndicatorSearchTool(harness.server, api as never);
   const payload = JSON.parse(
     await harness.get("macro_indicator_search").execute({
-      q: "nonexistent indicator",
+      query: "nonexistent indicator",
     }),
   ) as { summary: string; data: unknown[] };
 

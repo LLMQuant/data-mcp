@@ -45,8 +45,10 @@ function createToolHarness() {
 
 test("sec_filing_browse forwards filings and meta verbatim (no synthesized coverage)", async () => {
   const harness = createToolHarness();
+  const calls: Array<Record<string, unknown>> = [];
   const api = {
-    async getSecFilingBrowse() {
+    async getSecFilingBrowse(params: Record<string, unknown>) {
+      calls.push(params);
       return {
         data: [
           {
@@ -103,6 +105,11 @@ test("sec_filing_browse forwards filings and meta verbatim (no synthesized cover
   assert.deepEqual(payload.data[1]?.sectionKeys, []);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal(payload.meta.remainingCredits, 99);
+  assert.deepEqual(calls[0], {
+    ticker: "AAPL",
+    filingType: undefined,
+    limit: 2,
+  });
   // No coverage / availability fields are read or emitted anymore.
   assert.equal("coverage" in payload.meta, false);
   assert.doesNotMatch(raw, /coverage|availability|"reason"/);
@@ -402,7 +409,7 @@ test("sec_filing_read rejects quarter for 8-K (Closes #305)", () => {
   assert.match(parsed.error.message, /quarter is only valid for 10-Q/);
 });
 
-test("sec_filing_read accepts 8-K with accession_number + item (Closes #305)", () => {
+test("sec_filing_read accepts 8-K with accession_number + items (Closes #305)", () => {
   const harness = createToolHarness();
   const api = {
     async getSecFilingRead() {

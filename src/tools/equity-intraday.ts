@@ -5,13 +5,23 @@ import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 import {
+  earliestHasStartDate,
   equityIntradayDateSchema,
   equityIntradayIntervalSchema,
   equityIntradayLimitSchema,
   equityTickerSchema,
+  orderedDateRange,
+  takeFromSchema,
 } from "../shared/schemas";
 
-const MAX_RANGE_DAYS = 14;
+const INTRADAY_MAX_RANGE_DAYS = 14;
+
+// Window-width cap message (tool-query-contract.md §2.7): must state the cap AND
+// an actionable next step. Kept byte-identical with the Web route message.
+const INTRADAY_RANGE_LIMIT_MESSAGE =
+  `date range must be ${INTRADAY_MAX_RANGE_DAYS} calendar days or less; ` +
+  "when end_date is omitted it defaults to the current US Eastern date. " +
+  "Narrow the window, or use equity_historical_prices for daily bars over longer periods.";
 
 export function registerEquityIntradayTool(
   server: McpToolRegistry,
@@ -20,63 +30,76 @@ export function registerEquityIntradayTool(
   server.addTool({
     name: "equity_intraday_prices",
     description:
-      "Query US equity 1h intraday OHLCV prices. Returns closed regular-session bars only. " +
-      "Two usage patterns: (1) pass limit for the most recent bars; " +
-      "(2) pass start_date + end_date for a specific date range. " +
-      "Do not combine limit with start_date/end_date.",
-    parameters: z.object({
-      ticker: equityTickerSchema.describe(
-        'US equity ticker (e.g. "AAPL", "MSFT", "BRK.B", "^GSPC" for S&P 500 index).',
-      ),
-      interval: equityIntradayIntervalSchema
-        .optional()
-        .describe('Intraday interval. MVP supports only "1h".'),
-      start_date: equityIntradayDateSchema
-        .optional()
-        .describe(
-          "Start of date range in YYYY-MM-DD format. Must be used with end_date.",
+      "Query US equity 1h intraday OHLCV bars by regular-session trading date. " +
+      "Use start_date/end_date to bound the window; single boundaries are allowed. " +
+      "The queried window must be 14 calendar days or less: when end_date is omitted it defaults to the current US Eastern date, " +
+      "so a start_date more than 14 days back is rejected — use equity_historical_prices for longer daily-bar history. " +
+      "limit keeps at most N bars, take_from chooses latest or earliest candidates, and results return oldest first.",
+    parameters: z
+      .object({
+        ticker: equityTickerSchema.describe(
+          'US equity ticker (e.g. "AAPL", "MSFT", "BRK.B", "^GSPC" for S&P 500 index).',
         ),
-      end_date: equityIntradayDateSchema
-        .optional()
-        .describe(
-          "End of date range in YYYY-MM-DD format. Must be used with start_date.",
-        ),
-      limit: equityIntradayLimitSchema
-        .optional()
-        .describe(
-          "Number of recent 1h bars. Default: 35. Max: 70. Cannot be combined with start_date/end_date.",
-        ),
-    }),
-    execute: async ({ ticker, interval, start_date, end_date, limit }, context) => {
+        interval: equityIntradayIntervalSchema
+          .optional()
+          .describe('Intraday interval. Currently supports "1h".'),
+        start_date: equityIntradayDateSchema
+          .optional()
+          .describe(
+            "Inclusive YYYY-MM-DD trading-date window start.",
+          ),
+        end_date: equityIntradayDateSchema
+          .optional()
+          .describe(
+            "Inclusive YYYY-MM-DD trading-date window end.",
+          ),
+        limit: equityIntradayLimitSchema
+          .optional()
+          .describe(
+            "Maximum 1h bars to keep after date filtering. Default: 35. Max: 70.",
+          ),
+        take_from: takeFromSchema
+          .default("latest")
+          .describe(
+            'Which side of the filtered window to keep when more than limit bars match. Default: "latest".',
+          ),
+      })
+      .refine(orderedDateRange, {
+        message: "start_date must not be after end_date.",
+      })
+      .refine(intradayWindowWithinLimit, {
+        message: INTRADAY_RANGE_LIMIT_MESSAGE,
+      })
+      .refine(earliestHasStartDate, {
+        message: "take_from=earliest requires start_date.",
+      }),
+    execute: async (
+      { ticker, interval, start_date, end_date, limit, take_from },
+      context,
+    ) => {
       try {
         const effectiveInterval = interval ?? "1h";
         if (effectiveInterval !== "1h") {
           throw new Error('interval must be "1h".');
         }
 
-        const hasStart = Boolean(start_date);
-        const hasEnd = Boolean(end_date);
-        if (hasStart !== hasEnd) {
-          throw new Error("start_date and end_date must be used together.");
-        }
-
-        const isRangeMode = hasStart && hasEnd;
-        if (isRangeMode && limit != null) {
-          throw new Error(
-            "limit cannot be combined with start_date/end_date. Use recent mode or range mode.",
-          );
-        }
-
-        if (isRangeMode && start_date && end_date) {
-          assertRangeWithinLimit(start_date, end_date);
-        }
+        const effectiveTakeFrom = take_from ?? "latest";
+        assertHistoricalWindow({
+          start: start_date,
+          end: end_date,
+          takeFrom: effectiveTakeFrom,
+          startName: "start_date",
+          endName: "end_date",
+        });
+        assertIntradayWindowWithinLimit(start_date, end_date);
 
         const response = await getApiClient(api, context).getEquityIntraday({
           ticker,
           interval: "1h",
           startDate: start_date,
           endDate: end_date,
-          limit: isRangeMode ? undefined : limit,
+          limit,
+          takeFrom: effectiveTakeFrom,
         });
 
         const summary =
@@ -96,16 +119,64 @@ export function registerEquityIntradayTool(
   });
 }
 
-function assertRangeWithinLimit(startDate: string, endDate: string) {
+function assertHistoricalWindow({
+  start,
+  end,
+  takeFrom,
+  startName,
+  endName,
+}: {
+  start?: string;
+  end?: string;
+  takeFrom: "latest" | "earliest";
+  startName: string;
+  endName: string;
+}) {
+  if (takeFrom === "earliest" && !start) {
+    throw new Error(`take_from=earliest requires ${startName}.`);
+  }
+
+  if (start && end && Date.parse(`${start}T00:00:00Z`) > Date.parse(`${end}T00:00:00Z`)) {
+    throw new Error(`${startName} must not be after ${endName}.`);
+  }
+}
+
+// The cap applies to the *effective* window: end_date defaults to the current
+// Eastern date on the Web side, so `start_date` alone can still be over-wide.
+function intradayWindowWithinLimit(value: { start_date?: string; end_date?: string }) {
+  if (!value.start_date) {
+    return true;
+  }
+
+  const effectiveEnd = value.end_date ?? currentEasternDate();
+  const days = countInclusiveCalendarDays(value.start_date, effectiveEnd);
+  // A future-dated start_date inverts the effective window and yields a
+  // non-positive day count, which must not slip through the upper bound.
+  return days >= 1 && days <= INTRADAY_MAX_RANGE_DAYS;
+}
+
+function assertIntradayWindowWithinLimit(start?: string, end?: string) {
+  if (start && !intradayWindowWithinLimit({ start_date: start, end_date: end })) {
+    throw new Error(INTRADAY_RANGE_LIMIT_MESSAGE);
+  }
+}
+
+function countInclusiveCalendarDays(startDate: string, endDate: string) {
   const startMs = Date.parse(`${startDate}T00:00:00Z`);
   const endMs = Date.parse(`${endDate}T00:00:00Z`);
-  const calendarDays = Math.floor((endMs - startMs) / 86_400_000) + 1;
+  return Math.floor((endMs - startMs) / 86_400_000) + 1;
+}
 
-  if (calendarDays < 1) {
-    throw new Error("start_date must not be after end_date.");
-  }
+const EASTERN_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/New_York",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
-  if (calendarDays > MAX_RANGE_DAYS) {
-    throw new Error("date range must be 14 calendar days or less.");
-  }
+function currentEasternDate(): string {
+  const parts = EASTERN_DATE_FORMATTER.formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }

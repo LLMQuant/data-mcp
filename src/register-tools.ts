@@ -1,5 +1,6 @@
 import type { ApiClientProvider } from "./client/api-provider";
 import type { McpToolRegistry } from "./tools/registry";
+import { z } from "zod";
 import { registerCryptoHistoricalTool } from "./tools/crypto-historical";
 import { registerCryptoSnapshotTool } from "./tools/crypto-snapshot";
 import { registerEquityHistoricalTool } from "./tools/equity-historical";
@@ -31,32 +32,103 @@ export function registerLlmquantDataTools(
   server: McpToolRegistry,
   api: ApiClientProvider,
 ) {
-  registerSearchWikiTool(server, api);
-  registerReadWikiTool(server, api);
-  registerSearchPaperTool(server, api);
-  registerReadPaperTool(server, api);
-  registerCryptoHistoricalTool(server, api);
-  registerCryptoSnapshotTool(server, api);
-  registerPolymarketEventBrowseTool(server, api);
-  registerPolymarketEventSearchTool(server, api);
-  registerPolymarketEventReadTool(server, api);
-  registerPolymarketMarketReadTool(server, api);
-  registerPolymarketPriceHistoryTool(server, api);
-  registerEquityHistoricalTool(server, api);
-  registerEquityIntradayTool(server, api);
-  registerMacroIndicatorSearchTool(server, api);
-  registerMacroIndicatorHistoryTool(server, api);
-  registerMacroIndicatorSnapshotTool(server, api);
-  registerSecFilingBrowseTool(server, api);
-  registerSecFilingReadTool(server, api);
-  registerSec13fByManagerTool(server, api);
-  registerSec13fByTickerTool(server, api);
-  registerSec13fListTopManagersTool(server, api);
-  registerEtfLookupTool(server, api);
-  registerEtfHoldingsTool(server, api);
-  registerPersonalHoldingsTool(server, api);
-  registerPersonalProfileTool(server, api);
-  if (process.env.NEWS_API_ENABLED === "true") {
-    registerNewsBrowseTool(server, api);
+  const strictServer = strictRegistry(server);
+
+  registerSearchWikiTool(strictServer, api);
+  registerReadWikiTool(strictServer, api);
+  registerSearchPaperTool(strictServer, api);
+  registerReadPaperTool(strictServer, api);
+  registerCryptoHistoricalTool(strictServer, api);
+  registerCryptoSnapshotTool(strictServer, api);
+  registerPolymarketEventBrowseTool(strictServer, api);
+  registerPolymarketEventSearchTool(strictServer, api);
+  registerPolymarketEventReadTool(strictServer, api);
+  registerPolymarketMarketReadTool(strictServer, api);
+  registerPolymarketPriceHistoryTool(strictServer, api);
+  registerEquityHistoricalTool(strictServer, api);
+  registerEquityIntradayTool(strictServer, api);
+  registerMacroIndicatorSearchTool(strictServer, api);
+  registerMacroIndicatorHistoryTool(strictServer, api);
+  registerMacroIndicatorSnapshotTool(strictServer, api);
+  registerSecFilingBrowseTool(strictServer, api);
+  registerSecFilingReadTool(strictServer, api);
+  registerSec13fByManagerTool(strictServer, api);
+  registerSec13fByTickerTool(strictServer, api);
+  registerSec13fListTopManagersTool(strictServer, api);
+  registerEtfLookupTool(strictServer, api);
+  registerEtfHoldingsTool(strictServer, api);
+  registerPersonalHoldingsTool(strictServer, api);
+  registerPersonalProfileTool(strictServer, api);
+  registerNewsBrowseTool(strictServer, api);
+}
+
+function strictRegistry(server: McpToolRegistry): McpToolRegistry {
+  return {
+    addTool(tool) {
+      const parameters = strictParameters(tool.parameters);
+      server.addTool({
+        ...tool,
+        parameters,
+        execute: async (args, context) => tool.execute(parameters.parse(args), context),
+      });
+    },
+  };
+}
+
+/**
+ * Public parameter names that were renamed by the query-contract refactor
+ * (tool-query-contract.md §六 B7/B8). The registry-level strict wrapper rejects
+ * the old names; without this map an Agent only sees zod's default
+ * `Unrecognized key: "topK"` and is never told what to send instead. Kept
+ * byte-identical with the hosted registry's copy in `lib/mcp-vercel.ts`.
+ */
+const RENAMED_TOOL_PARAMETERS: Record<string, string> = {
+  topK: "limit",
+  top_k: "limit",
+  q: "query",
+};
+
+export function describeUnrecognizedParameters(keys: readonly string[]) {
+  const details = keys.map((key) => {
+    const replacement = RENAMED_TOOL_PARAMETERS[key];
+    return replacement
+      ? `"${key}" was renamed to "${replacement}"`
+      : `"${key}" is not a supported parameter`;
+  });
+
+  return `Unrecognized parameter(s): ${details.join("; ")}.`;
+}
+
+type StrictableSchema<Schema> = Schema & {
+  strict?: () => Schema;
+  clone?: (def: Record<string, unknown>) => Schema;
+  _zod?: { def?: Record<string, unknown> };
+};
+
+function unrecognizedParameterErrorMap(issue: {
+  code?: string;
+  keys?: readonly string[];
+}) {
+  if (issue.code !== "unrecognized_keys" || !issue.keys?.length) {
+    return undefined;
   }
+
+  return describeUnrecognizedParameters(issue.keys);
+}
+
+function strictParameters<Schema extends z.ZodTypeAny>(schema: Schema): Schema {
+  const maybeObject = schema as StrictableSchema<Schema>;
+
+  if (typeof maybeObject.strict !== "function") {
+    return schema;
+  }
+
+  const strict = maybeObject.strict() as StrictableSchema<Schema>;
+  const def = strict._zod?.def;
+
+  if (typeof strict.clone !== "function" || !def) {
+    return strict;
+  }
+
+  return strict.clone({ ...def, error: unrecognizedParameterErrorMap });
 }

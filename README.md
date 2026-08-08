@@ -23,6 +23,9 @@
 
 ---
 
+> [!IMPORTANT]
+> **New: [Company News](https://docs.llmquantdata.com/en/api/news/browse) and [Polymarket prediction markets](https://docs.llmquantdata.com/en/api/prediction-markets/events) are live.** Browse company updates, discover market events, and track implied probabilities from one MCP server.
+
 Context engineering meets financial data — structured for agent context, not human browsing.
 
 ## Table of Contents
@@ -82,10 +85,11 @@ Configure once — every agent in your stack gets the data.
 | `sec_13f_list_top_managers` | List the top N smart money managers ranked by 13F reportable value (latest quarter, up to 1000) | 0 |
 | `etf_lookup` | ETF fund identity + SEC mapping + top holdings summary (currently supported ETFs) | 0 |
 | `etf_holdings` | ETF latest available SEC N-PORT regulatory holdings (currently supported ETFs) | 1* |
+| `news_browse` | Browse recent company news by ticker, event, topic, or date | 2 |
 | `personal_holdings` | Read the holdings you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
 | `personal_profile` | Read the financial profile you saved in your LLMQuant Dashboard → Profile (your own account only) | 0 |
 
-<sub>* An unsupported ticker returns `200` with a coverage envelope and `0` credits — the coverage probe is free; you are only charged the 1 credit when holdings are actually returned.</sub>
+<sub>* An unsupported ETF ticker returns `200` with an explicit coverage notice and `0` credits — you are only charged the 1 credit when holdings are actually returned.</sub>
 
 Prediction Markets tools follow an event-first flow: use `polymarket_event_search` first for natural-language discovery, use `polymarket_event_browse` only for list/exact-filter requests, then read a selected event, read a market, and request price history for an outcome token.
 

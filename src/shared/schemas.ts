@@ -9,16 +9,79 @@ export const searchQuerySchema = z
 export const lexicalFilterQuerySchema = z
   .string()
   .trim()
-  .min(1, "q is required.")
-  .max(200, "q must be 200 characters or less.");
+  .min(1, "query is required.")
+  .max(200, "query must be 200 characters or less.");
 
 export const wikiQuerySchema = searchQuerySchema;
 
-export const topKSchema = z
+export const searchLimitSchema = z
   .number()
   .int()
-  .min(1, "topK must be at least 1.")
-  .max(10, "topK must be 10 or less.");
+  .min(1, "limit must be at least 1.")
+  .max(10, "limit must be 10 or less.");
+
+export const takeFromSchema = z.enum(["latest", "earliest"]);
+
+/**
+ * Parse-time guards for the historical-series boundary matrix
+ * (tool-query-contract.md §2.2). These run as zod refinements so a bad window
+ * fails as `invalid params` before `execute()` — the same error envelope the
+ * hosted registry produces. The equivalent `execute()` checks stay in place as
+ * defense-in-depth for direct callers that bypass the registry wrapper.
+ */
+export function earliestHasStartDate<
+  T extends { start_date?: string; take_from?: "latest" | "earliest" },
+>(value: T) {
+  return value.take_from !== "earliest" || Boolean(value.start_date);
+}
+
+export function earliestHasStartTime<
+  T extends { start_time?: string; take_from?: "latest" | "earliest" },
+>(value: T) {
+  return value.take_from !== "earliest" || Boolean(value.start_time);
+}
+
+export function orderedDateRange<T extends { start_date?: string; end_date?: string }>(
+  value: T,
+) {
+  return (
+    !value.start_date ||
+    !value.end_date ||
+    Date.parse(`${value.start_date}T00:00:00Z`) <=
+      Date.parse(`${value.end_date}T00:00:00Z`)
+  );
+}
+
+export function orderedTimeRange<T extends { start_time?: string; end_time?: string }>(
+  value: T,
+) {
+  return (
+    !value.start_time ||
+    !value.end_time ||
+    Date.parse(value.start_time) <= Date.parse(value.end_time)
+  );
+}
+
+export const dateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/u, "date must be in YYYY-MM-DD format.")
+  .refine(isIsoCalendarDate, "date must be a valid YYYY-MM-DD calendar date.");
+
+export const isoUtcDateTimeSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/u,
+    "datetime must be ISO 8601 UTC.",
+  )
+  .refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: "datetime must be a valid ISO 8601 UTC timestamp.",
+  })
+  .refine(
+    (value) => isIsoCalendarDate(value.slice(0, 10)),
+    "datetime must be a valid ISO 8601 UTC timestamp.",
+  );
 
 export const wikiItemIdSchema = z
   .string()
@@ -282,10 +345,4 @@ export const polymarketNonNegativeNumberSchema = z
   .number()
   .min(0, "value must be non-negative.");
 
-export const polymarketIsoDateTimeSchema = z
-  .string()
-  .trim()
-  .regex(/^\d{4}-\d{2}-\d{2}T/u, "datetime must be ISO 8601.")
-  .refine((value) => !Number.isNaN(Date.parse(value)), {
-    message: "datetime must be a valid ISO 8601 timestamp.",
-  });
+export const polymarketIsoDateTimeSchema = isoUtcDateTimeSchema;

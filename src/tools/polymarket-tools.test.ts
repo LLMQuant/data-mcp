@@ -68,7 +68,7 @@ test("Prediction Markets tool descriptions avoid internal implementation terms",
   );
 });
 
-test("Prediction Markets schemas enforce paired ranges and supported intervals", () => {
+test("Prediction Markets schemas enforce supported intervals and ordered ranges", () => {
   const harness = createToolHarness();
   registerAllPolymarketTools(harness, {});
 
@@ -81,15 +81,14 @@ test("Prediction Markets schemas enforce paired ranges and supported intervals",
   );
   assert.equal(
     harness.get("polymarket_event_browse").parameters.safeParse({
-      q: "x".repeat(201),
+      query: "x".repeat(201),
     }).success,
     false,
   );
   assert.equal(
-    harness.get("polymarket_event_search").parameters.safeParse({
-      query: "Bitcoin ETF approval",
-      start_time: "2026-02-01T00:00:00Z",
-      end_time: "2026-01-01T00:00:00Z",
+    harness.get("polymarket_event_browse").parameters.safeParse({
+      start_time: "2026-02-30T00:00:00Z",
+      end_time: "2026-03-01T00:00:00Z",
     }).success,
     false,
   );
@@ -99,6 +98,45 @@ test("Prediction Markets schemas enforce paired ranges and supported intervals",
       interval: "15m",
     }).success,
     false,
+  );
+  assert.equal(
+    harness.get("polymarket_price_history").parameters.safeParse({
+      outcome_token_id: "123",
+      interval: "1d",
+      start_time: "2026-02-01T00:00:00Z",
+    }).success,
+    true,
+  );
+  assert.equal(
+    harness.get("polymarket_price_history").parameters.safeParse({
+      outcome_token_id: "123",
+      interval: "1d",
+      limit: 20001,
+    }).success,
+    false,
+  );
+  assert.equal(
+    harness.get("polymarket_price_history").parameters.safeParse({
+      outcome_token_id: "123",
+      interval: "1d",
+      start_time: "2026-02-30T00:00:00Z",
+    }).success,
+    false,
+  );
+
+  // §2.2: `earliest` needs an explicit start boundary, and the check runs at
+  // parse time so the failure is invalid params — same envelope as hosted.
+  const earliestWithoutStart = harness
+    .get("polymarket_price_history")
+    .parameters.safeParse({
+      outcome_token_id: "123",
+      interval: "1d",
+      take_from: "earliest",
+    });
+  assert.equal(earliestWithoutStart.success, false);
+  assert.equal(
+    earliestWithoutStart.success ? "" : earliestWithoutStart.error.issues[0].message,
+    "take_from=earliest requires start_time.",
   );
 });
 
@@ -131,7 +169,7 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
   const tool = harness.get("polymarket_event_browse");
   const input = tool.parameters.parse({
     status: "active",
-    q: "Bitcoin ETF",
+    query: "Bitcoin ETF",
     tag: "crypto",
     min_volume: 10_000,
     min_liquidity: 1_000,
@@ -150,7 +188,7 @@ test("polymarket_event_browse calls the Web API client and preserves events", as
   assert.equal("items" in payload, false);
   assert.deepEqual(calls[0], {
     status: "active",
-    q: "Bitcoin ETF",
+    query: "Bitcoin ETF",
     tag: "crypto",
     asset: undefined,
     startTime: undefined,
@@ -206,8 +244,6 @@ test("polymarket_event_search calls the semantic route and forwards Web metadata
     query: "Bitcoin ETF approval",
     status: "active_or_recently_closed",
     tag: "crypto",
-    startTime: undefined,
-    endTime: undefined,
     limit: 5,
   });
 });
@@ -295,6 +331,7 @@ test("polymarket_price_history forwards range and limit without dropping the cap
     start_time: "2024-01-01T00:00:00Z",
     end_time: "2024-01-15T00:00:00Z",
     limit: 10,
+    take_from: "earliest",
   });
   const payload = JSON.parse(await tool.execute(input)) as {
     summary: string;
@@ -313,5 +350,27 @@ test("polymarket_price_history forwards range and limit without dropping the cap
     startTime: "2024-01-01T00:00:00Z",
     endTime: "2024-01-15T00:00:00Z",
     limit: 10,
+    takeFrom: "earliest",
   });
+});
+
+test("polymarket_price_history rejects earliest without start_time before Web call", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getPolymarketPriceHistory() {
+      throw new Error("should not call Web API");
+    },
+  };
+
+  registerPolymarketPriceHistoryTool(harness.server, api as never);
+  await assert.rejects(
+    () =>
+      harness.get("polymarket_price_history").execute({
+        outcome_token_id: "token-yes",
+        interval: "1d",
+        end_time: "2024-01-15T00:00:00Z",
+        take_from: "earliest",
+      }),
+    /requires start_time/,
+  );
 });

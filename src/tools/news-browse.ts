@@ -6,14 +6,82 @@ import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const LABEL_RE = /^(?:([a-z_]+):)?([a-z0-9_]+)$/;
-const NEWS_LABEL_TYPES = ["event", "domain"] as const;
-const MAX_NEWS_LABELS = 10;
+const DEFAULT_NEWS_LIMIT = 10;
+const MAX_NEWS_LIMIT = 25;
+
+// Executable mirror of contexts/project/data/news-taxonomy.md v3. The Web
+// boundary carries the same closed sets and rejects unknown filter values.
+const NEWS_EVENT_VALUES = [
+  "earnings",
+  "guidance",
+  "m_and_a",
+  "partnership",
+  "product",
+  "regulatory_approval",
+  "regulatory",
+  "legal",
+  "leadership_change",
+  "workforce",
+  "restructuring",
+  "bankruptcy",
+  "capital_action",
+  "credit_rating",
+  "analyst_rating",
+  "accounting_audit",
+  "operational_incident",
+  "shareholder_meeting",
+  "strategic_update",
+  "other",
+] as const;
+
+const NEWS_TOPIC_VALUES = [
+  "semiconductors",
+  "software",
+  "cloud_computing",
+  "cybersecurity",
+  "artificial_intelligence",
+  "consumer_electronics",
+  "it_hardware_networking",
+  "telecommunications",
+  "media_entertainment",
+  "internet_services",
+  "biotech_pharma",
+  "medical_devices",
+  "life_sciences_tools",
+  "healthcare_services",
+  "banking",
+  "capital_markets",
+  "insurance",
+  "fintech",
+  "crypto_digital_assets",
+  "real_estate",
+  "automotive",
+  "retail",
+  "consumer_packaged_goods",
+  "apparel_luxury",
+  "restaurants_leisure",
+  "aerospace_defense",
+  "industrial_machinery",
+  "transportation_logistics",
+  "construction_engineering",
+  "business_services",
+  "oil_gas",
+  "renewable_energy",
+  "utilities",
+  "metals_mining",
+  "chemicals",
+  "agriculture_food_production",
+  "paper_packaging_forestry",
+  "environmental_services",
+  "space_economy",
+  "quantum_computing",
+  "data_centers",
+  "macroeconomics_policy",
+  "geopolitics_trade",
+] as const;
 
 function isIsoCalendarDate(value: string): boolean {
-  if (!DATE_RE.test(value)) {
-    return false;
-  }
+  if (!DATE_RE.test(value)) return false;
 
   const [yearRaw, monthRaw, dayRaw] = value.split("-");
   const year = Number(yearRaw);
@@ -30,62 +98,31 @@ function isIsoCalendarDate(value: string): boolean {
   );
 }
 
-function hasValidNewsLabels(raw: string): boolean {
-  const labels = raw
-    .split(",")
-    .map((label) => label.trim().toLowerCase())
-    .filter(Boolean);
-
-  return (
-    labels.length > 0 &&
-    labels.length <= MAX_NEWS_LABELS &&
-    labels.every((label) => {
-      const match = LABEL_RE.exec(label);
-      if (!match) {
-        return false;
-      }
-      const type = match[1];
-      return !type || NEWS_LABEL_TYPES.includes(type as never);
-    })
-  );
-}
-
-// Every behavioral promise written in a .describe() below is enforced in this
-// schema's refinements (parse stage) — never left to the Web route to honor.
-// See contexts/mcp/design/tool-expansion.md §十一.
+// Every behavioral promise in the descriptions is enforced here at parse
+// time, before the Web client runs (tool-expansion.md §十一).
 const newsBrowseParameters = z
   .object({
-    ticker: z
-      .string()
-      .trim()
+    tickers: z
+      .array(z.string().trim().min(1))
       .min(1)
+      .max(5)
       .optional()
-      .describe(
-        'U.S. equity ticker, single or comma-separated for OR matching (e.g. "NVDA" or "AAPL,MSFT").',
-      ),
-    labels: z
-      .string()
-      .trim()
+      .describe("Optional equity symbols to OR together. Maximum: 5."),
+    events: z
+      .array(z.enum(NEWS_EVENT_VALUES))
       .min(1)
-      .refine(hasValidNewsLabels, {
-        message:
-          "labels must be comma-separated event/domain labels in type:name form; bare names default to domain.",
-      })
+      .max(NEWS_EVENT_VALUES.length)
       .optional()
       .describe(
-        'Comma-separated controlled labels in type:name form, e.g. "event:results_of_operations,domain:ai". ' +
-          "MVP input types: event, domain. A bare name defaults to domain. " +
-          "Consumers should ignore unknown returned types/names as the taxonomy grows additively.",
+        "Optional controlled event values to OR together. Unknown returned values should be ignored.",
       ),
-    label_mode: z
-      .enum(["any", "all"])
-      .default("any")
-      .describe('How multiple labels combine: "any" (default) or "all".'),
-    source_type: z
-      .enum(["company_8k", "press_release", "regulatory_news"])
+    topics: z
+      .array(z.enum(NEWS_TOPIC_VALUES))
+      .min(1)
+      .max(NEWS_TOPIC_VALUES.length)
       .optional()
       .describe(
-        'Source type filter. Currently only "company_8k" (8-K EX-99.x press releases) has data.',
+        "Optional controlled subject topics to OR together. Unknown returned values should be ignored.",
       ),
     start_date: z
       .string()
@@ -95,7 +132,7 @@ const newsBrowseParameters = z
       })
       .optional()
       .describe(
-        "Start of date range in YYYY-MM-DD format. Must be used with end_date (Range mode).",
+        "Inclusive UTC start date. Must be used together with end_date.",
       ),
     end_date: z
       .string()
@@ -105,29 +142,15 @@ const newsBrowseParameters = z
       })
       .optional()
       .describe(
-        "End of date range in YYYY-MM-DD format. Must be used with start_date.",
+        "Inclusive UTC end date. Must be used together with start_date.",
       ),
     limit: z
       .number()
       .int()
-      .min(1, "limit must be at least 1.")
-      .max(50, "limit must be 50 or less.")
-      .optional()
-      .describe(
-        "Maximum articles for Recent mode (no dates). Default: 10. Max: 50. " +
-          "Cannot be combined with start_date/end_date — in Range mode the full window is returned, paginated by cursor.",
-      ),
-    cursor: z
-      .string()
-      .trim()
       .min(1)
-      .optional()
-      .describe(
-        "Opaque pagination token from data.nextCursor. Pass it back unchanged; discard it when filters change.",
-      ),
-  })
-  .refine((value) => value.ticker || value.labels || value.source_type, {
-    message: "At least one of ticker, labels, or source_type is required.",
+      .max(MAX_NEWS_LIMIT)
+      .default(DEFAULT_NEWS_LIMIT)
+      .describe("Maximum returned items. Default: 10. Maximum: 25."),
   })
   .refine((value) => Boolean(value.start_date) === Boolean(value.end_date), {
     message: "start_date and end_date must be used together.",
@@ -135,16 +158,7 @@ const newsBrowseParameters = z
   .refine(
     (value) =>
       !value.start_date || !value.end_date || value.start_date <= value.end_date,
-    {
-      message: "start_date must not be after end_date.",
-    },
-  )
-  .refine(
-    (value) => !(value.limit != null && value.start_date && value.end_date),
-    {
-      message:
-        "limit cannot be combined with start_date/end_date; in range mode the full window is returned (paginated).",
-    },
+    { message: "start_date must not be after end_date." },
   );
 
 export function registerNewsBrowseTool(
@@ -154,38 +168,27 @@ export function registerNewsBrowseTool(
   server.addTool({
     name: "news_browse",
     description:
-      "List recent news articles for a ticker, controlled labels, source type, or date range. " +
-      "Returns each article's source link, AI-generated summary, and controlled labels " +
-      "so the agent can prune and cite news without leaving the API. " +
-      "8-K-sourced articles carry a filingRef back to the SEC filing (use sec_filing_read for full text). " +
-      "This is not a semantic search tool: all queries are exact parameterized filters.",
+      "Browse recent company announcements across the covered market, optionally filtered by tickers, events, topics, or an inclusive date range. " +
+      "Returns AI-written title, abstract, summary, controlled event/topic sets, publication date, and a link to the original announcement. " +
+      "This is exact filtering, not semantic or text search.",
     parameters: newsBrowseParameters,
     execute: async (
-      { ticker, labels, label_mode, source_type, start_date, end_date, limit, cursor },
+      { tickers, events, topics, start_date, end_date, limit },
       context,
     ) => {
       try {
         const response = await getApiClient(api, context).getNewsBrowse({
-          ticker,
-          labels,
-          labelMode: label_mode,
-          sourceType: source_type,
+          tickers,
+          events,
+          topics,
           startDate: start_date,
           endDate: end_date,
           limit,
-          cursor,
         });
 
-        const scope = ticker ?? labels ?? source_type ?? "news";
-        const range =
-          start_date && end_date ? ` from ${start_date} to ${end_date}` : "";
-        const summary =
-          response.data.items.length === 0
-            ? `No news articles found for ${scope}${range}.`
-            : `${scope}: ${response.data.items.length} news article(s)${range}.`;
-
+        const scope = tickers?.join(", ") ?? "the covered market";
         return formatToolResult({
-          summary,
+          summary: `${scope}: ${response.data.items.length} recent news item(s).`,
           data: response.data,
           meta: response.meta,
         });

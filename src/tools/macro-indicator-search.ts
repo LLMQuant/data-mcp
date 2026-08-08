@@ -13,14 +13,14 @@ export function registerMacroIndicatorSearchTool(
   server.addTool({
     name: "macro_indicator_search",
     description:
-      "Search the curated U.S. macro indicators catalog (~50 series from FRED). " +
+      "Keyword match the fixed curated U.S. macro indicators catalog (~50 series from FRED); this is not semantic search. " +
       "Categories: Growth, Consumption, Inflation, Labor, Housing, Rates, Inflation Expectations, Liquidity, Conditions, FX, Credit, Sentiment, Energy. " +
       "Key indicators include: us.cpi.headline (CPI), us.unemployment_rate, us.rates.fed_funds, us.yield.10y (10Y Treasury), " +
       "us.gdp.real, us.nonfarm_payrolls, us.pce.core (Fed's preferred inflation), us.yield_curve.10y_2y (recession signal), " +
       "us.housing_starts, us.money_supply.m2, us.financial_conditions.nfci, us.oil.wti_spot. " +
       "Call with no params to list all. Use category param to filter by theme.",
     parameters: z.object({
-      q: z
+      query: z
         .string()
         .optional()
         .describe(
@@ -42,10 +42,10 @@ export function registerMacroIndicatorSearchTool(
         .optional()
         .describe("Max results. Default: 20. Max: 100."),
     }),
-    execute: async ({ q, category, frequency, limit }, context) => {
+    execute: async ({ query, category, frequency, limit }, context) => {
       try {
         const response = await getApiClient(api, context).getMacroIndicators({
-          q,
+          query,
           category,
           frequency,
           limit,

@@ -101,13 +101,7 @@ test("equity_historical_prices formats daily bars and preserves metadata", async
   assert.equal(payload.meta.remainingCredits, 24);
 });
 
-test("equity_historical_prices strips limit when both start_date and end_date are provided", async () => {
-  // Anti-pattern §六 #5 (Wrapper-only MCP coverage):
-  // capture call args to the mocked web client and assert limit was actively
-  // stripped at the MCP boundary, instead of silently relying on downstream
-  // behavior. Schema description promises "ignored when start_date/end_date
-  // are set"; this test proves the execute layer keeps that promise.
-  // See contexts/mcp/design/tool-expansion.md §十一.
+test("equity_historical_prices forwards limit and take_from with date boundaries", async () => {
   const harness = createToolHarness();
   const captured: Array<Record<string, unknown>> = [];
   const api = {
@@ -126,13 +120,15 @@ test("equity_historical_prices strips limit when both start_date and end_date ar
     start_date: "2020-01-01",
     end_date: "2020-12-31",
     limit: 5,
+    take_from: "earliest",
   });
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.ticker, "AAPL");
   assert.equal(captured[0]?.startDate, "2020-01-01");
   assert.equal(captured[0]?.endDate, "2020-12-31");
-  assert.equal(captured[0]?.limit, undefined);
+  assert.equal(captured[0]?.limit, 5);
+  assert.equal(captured[0]?.takeFrom, "earliest");
 });
 
 test("equity_historical_prices forwards limit when no range is provided", async () => {
@@ -158,8 +154,42 @@ test("equity_historical_prices forwards limit when no range is provided", async 
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.limit, 7);
+  assert.equal(captured[0]?.takeFrom, "latest");
   assert.equal(captured[0]?.startDate, undefined);
   assert.equal(captured[0]?.endDate, undefined);
+});
+
+test("equity_historical_prices accepts a single start_date and guards earliest without start", async () => {
+  const harness = createToolHarness();
+  const captured: Array<Record<string, unknown>> = [];
+  const api = {
+    async getEquityHistorical(params: Record<string, unknown>) {
+      captured.push(params);
+      return {
+        data: { ticker: "AAPL", interval: "1d", prices: [] },
+        meta: { creditsUsed: 0, remainingCredits: 10 },
+      };
+    },
+  };
+
+  registerEquityHistoricalTool(harness.server, api as never);
+  await harness.get("equity_historical_prices").execute({
+    ticker: "AAPL",
+    start_date: "2020-01-01",
+    limit: 3,
+  });
+  assert.equal(captured[0]?.startDate, "2020-01-01");
+  assert.equal(captured[0]?.endDate, undefined);
+
+  await assert.rejects(
+    () =>
+      harness.get("equity_historical_prices").execute({
+        ticker: "AAPL",
+        end_date: "2020-12-31",
+        take_from: "earliest",
+      }),
+    /requires start_date/,
+  );
 });
 
 test("equity_historical_prices handles empty result", async () => {
@@ -266,7 +296,7 @@ test("equity_intraday_prices forwards limit in recent mode", async () => {
   assert.equal(captured[0]?.endDate, undefined);
 });
 
-test("equity_intraday_prices forwards range without limit", async () => {
+test("equity_intraday_prices forwards range with limit and take_from", async () => {
   const harness = createToolHarness();
   const captured: Array<Record<string, unknown>> = [];
   const api = {
@@ -284,15 +314,18 @@ test("equity_intraday_prices forwards range without limit", async () => {
     ticker: "AAPL",
     start_date: "2026-06-08",
     end_date: "2026-06-18",
+    limit: 35,
+    take_from: "earliest",
   });
 
   assert.equal(captured.length, 1);
   assert.equal(captured[0]?.startDate, "2026-06-08");
   assert.equal(captured[0]?.endDate, "2026-06-18");
-  assert.equal(captured[0]?.limit, undefined);
+  assert.equal(captured[0]?.limit, 35);
+  assert.equal(captured[0]?.takeFrom, "earliest");
 });
 
-test("equity_intraday_prices rejects limit combined with range before Web call", async () => {
+test("equity_intraday_prices accepts single boundaries and rejects earliest without start_date", async () => {
   const harness = createToolHarness();
   const captured: Array<Record<string, unknown>> = [];
   const api = {
@@ -310,16 +343,23 @@ test("equity_intraday_prices rejects limit combined with range before Web call",
     () =>
       harness.get("equity_intraday_prices").execute({
         ticker: "AAPL",
-        start_date: "2026-06-08",
         end_date: "2026-06-18",
-        limit: 35,
+        take_from: "earliest",
       }),
-    /limit cannot be combined/,
+    /requires start_date/,
   );
   assert.equal(captured.length, 0);
+
+  await harness.get("equity_intraday_prices").execute({
+    ticker: "AAPL",
+    end_date: "2026-06-18",
+    limit: 35,
+  });
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]?.endDate, "2026-06-18");
 });
 
-test("equity_intraday_prices rejects unsupported intervals and long ranges", async () => {
+test("equity_intraday_prices rejects unsupported intervals and reversed ranges", async () => {
   const harness = createToolHarness();
   const api = {
     async getEquityIntraday() {
@@ -341,11 +381,122 @@ test("equity_intraday_prices rejects unsupported intervals and long ranges", asy
     () =>
       harness.get("equity_intraday_prices").execute({
         ticker: "AAPL",
+        start_date: "2026-06-15",
+        end_date: "2026-06-01",
+      }),
+    /start_date must not be after end_date/,
+  );
+});
+
+test("equity_intraday_prices rejects ranges longer than 14 calendar days before Web call", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getEquityIntraday() {
+      throw new Error("should not call Web API");
+    },
+  };
+
+  registerEquityIntradayTool(harness.server, api as never);
+  const tool = harness.get("equity_intraday_prices");
+
+  assert.equal(
+    tool.parameters.safeParse({
+      ticker: "AAPL",
+      start_date: "2026-06-01",
+      end_date: "2026-06-15",
+    }).success,
+    false,
+  );
+  await assert.rejects(
+    () =>
+      tool.execute({
+        ticker: "AAPL",
         start_date: "2026-06-01",
         end_date: "2026-06-15",
       }),
     /14 calendar days/,
   );
+  // §2.7: the message must point at an actionable next step.
+  await assert.rejects(
+    () =>
+      tool.execute({
+        ticker: "AAPL",
+        start_date: "2026-06-01",
+        end_date: "2026-06-15",
+      }),
+    /equity_historical_prices/,
+  );
+});
+
+test("equity_intraday_prices accepts a window that is exactly 14 calendar days", async () => {
+  const harness = createToolHarness();
+  const captured: Array<Record<string, unknown>> = [];
+  const api = {
+    async getEquityIntraday(params: Record<string, unknown>) {
+      captured.push(params);
+      return {
+        data: { ticker: "AAPL", interval: "1h", prices: [] },
+        meta: { creditsUsed: 1, remainingCredits: 10 },
+      };
+    },
+  };
+
+  registerEquityIntradayTool(harness.server, api as never);
+  const tool = harness.get("equity_intraday_prices");
+  const exactlyFourteen = { ticker: "AAPL", start_date: "2026-06-01", end_date: "2026-06-14" };
+
+  assert.equal(tool.parameters.safeParse(exactlyFourteen).success, true);
+  await tool.execute(exactlyFourteen);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]?.startDate, "2026-06-01");
+  assert.equal(captured[0]?.endDate, "2026-06-14");
+});
+
+test("equity_intraday_prices rejects an over-wide window when only start_date is given", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getEquityIntraday() {
+      throw new Error("should not call Web API");
+    },
+  };
+
+  registerEquityIntradayTool(harness.server, api as never);
+  const tool = harness.get("equity_intraday_prices");
+  // end_date defaults to the current Eastern date, so a decade-old start_date
+  // is an over-wide effective window no matter when this test runs.
+  const openEnded = { ticker: "AAPL", start_date: "2015-01-01" };
+
+  assert.equal(tool.parameters.safeParse(openEnded).success, false);
+  await assert.rejects(() => tool.execute(openEnded), /14 calendar days/);
+  await assert.rejects(
+    () => tool.execute({ ...openEnded, take_from: "earliest" }),
+    /14 calendar days/,
+  );
+});
+
+test("equity_intraday_prices accepts a recent start_date-only window", async () => {
+  const harness = createToolHarness();
+  const captured: Array<Record<string, unknown>> = [];
+  const api = {
+    async getEquityIntraday(params: Record<string, unknown>) {
+      captured.push(params);
+      return {
+        data: { ticker: "AAPL", interval: "1h", prices: [] },
+        meta: { creditsUsed: 1, remainingCredits: 10 },
+      };
+    },
+  };
+
+  registerEquityIntradayTool(harness.server, api as never);
+  const tool = harness.get("equity_intraday_prices");
+  const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+  const recent = { ticker: "AAPL", start_date: threeDaysAgo };
+
+  assert.equal(tool.parameters.safeParse(recent).success, true);
+  await tool.execute(recent);
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]?.startDate, threeDaysAgo);
+  assert.equal(captured[0]?.endDate, undefined);
 });
 
 test("equity_intraday_prices schema rejects invalid range dates", () => {

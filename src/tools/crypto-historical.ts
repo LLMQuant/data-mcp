@@ -4,7 +4,15 @@ import { z } from "zod";
 import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
-import { tickerSchema, intervalSchema, cryptoLimitSchema } from "../shared/schemas";
+import {
+  cryptoLimitSchema,
+  earliestHasStartTime,
+  intervalSchema,
+  isoUtcDateTimeSchema,
+  orderedTimeRange,
+  takeFromSchema,
+  tickerSchema,
+} from "../shared/schemas";
 
 export function registerCryptoHistoricalTool(
   server: McpToolRegistry,
@@ -13,51 +21,67 @@ export function registerCryptoHistoricalTool(
   server.addTool({
     name: "crypto_historical_klines",
     description:
-      "Query historical crypto OHLCV candlestick data. Returns closed candles only. " +
-      "Two usage patterns: (1) pass limit for the most recent candles; " +
-      "(2) pass start_time + end_time for a specific date range. " +
-      "Do not pass start_time without end_time or vice versa.",
-    parameters: z.object({
-      ticker: tickerSchema.describe(
-        'Crypto ticker in BASE-QUOTE format (e.g. "BTC-USD", "ETH-USD").',
-      ),
-      interval: intervalSchema.describe(
-        'Candlestick interval: "1h", "4h", "1d", or "1w".',
-      ),
-      start_time: z
-        .string()
-        .optional()
-        .describe(
-          "Start of date range in ISO 8601 UTC (e.g. 2026-03-01T00:00:00Z). Must be used with end_time.",
+      "Query historical crypto OHLCV candles by candle close time. " +
+      "Use start_time/end_time to bound the window; single boundaries are allowed. " +
+      "limit keeps at most N candles, take_from chooses latest or earliest candidates, and results return oldest first. " +
+      "Use crypto_snapshot for the current market snapshot.",
+    parameters: z
+      .object({
+        ticker: tickerSchema.describe(
+          'Crypto ticker in BASE-QUOTE format (e.g. "BTC-USD", "ETH-USD").',
         ),
-      end_time: z
-        .string()
-        .optional()
-        .describe(
-          "End of date range in ISO 8601 UTC. Must be used with start_time.",
+        interval: intervalSchema.describe(
+          'Candlestick interval: "1h", "4h", "1d", or "1w".',
         ),
-      limit: cryptoLimitSchema
-        .optional()
-        .describe(
-          "Number of recent candles (ignored when start_time/end_time are set). " +
-          "Defaults by interval: 1h=24, 4h=42, 1d=30, 1w=12. Max 200.",
-        ),
-    }),
-    execute: async ({ ticker, interval, start_time, end_time, limit }, context) => {
+        start_time: isoUtcDateTimeSchema
+          .optional()
+          .describe(
+            "Inclusive ISO 8601 UTC window start (e.g. 2026-03-01T00:00:00Z).",
+          ),
+        end_time: isoUtcDateTimeSchema
+          .optional()
+          .describe(
+            "Inclusive ISO 8601 UTC window end.",
+          ),
+        limit: cryptoLimitSchema
+          .optional()
+          .describe(
+            "Maximum candles to keep after time filtering. " +
+            "Defaults by interval: 1h=24, 4h=42, 1d=30, 1w=12. Max 200.",
+          ),
+        take_from: takeFromSchema
+          .default("latest")
+          .describe(
+            'Which side of the filtered window to keep when more than limit candles match. Default: "latest".',
+          ),
+      })
+      .refine(orderedTimeRange, {
+        message: "start_time must not be after end_time.",
+      })
+      .refine(earliestHasStartTime, {
+        message: "take_from=earliest requires start_time.",
+      }),
+    execute: async (
+      { ticker, interval, start_time, end_time, limit, take_from },
+      context,
+    ) => {
       try {
-        // Enforce the description contract: when both start_time and end_time
-        // are set, `limit` is ignored. We must not forward the user's limit
-        // downstream — that is what caused Issue #280 (silent truncation).
-        // See `contexts/mcp/design/tool-expansion.md` §十一.
-        const isRangeMode = Boolean(start_time && end_time);
-        const effectiveLimit = isRangeMode ? undefined : limit;
+        const effectiveTakeFrom = take_from ?? "latest";
+        assertHistoricalWindow({
+          start: start_time,
+          end: end_time,
+          takeFrom: effectiveTakeFrom,
+          startName: "start_time",
+          endName: "end_time",
+        });
 
         const response = await getApiClient(api, context).getCryptoHistorical({
           ticker,
           interval,
           startTime: start_time,
           endTime: end_time,
-          limit: effectiveLimit,
+          limit,
+          takeFrom: effectiveTakeFrom,
         });
 
         const summary =
@@ -75,4 +99,26 @@ export function registerCryptoHistoricalTool(
       }
     },
   });
+}
+
+function assertHistoricalWindow({
+  start,
+  end,
+  takeFrom,
+  startName,
+  endName,
+}: {
+  start?: string;
+  end?: string;
+  takeFrom: "latest" | "earliest";
+  startName: string;
+  endName: string;
+}) {
+  if (takeFrom === "earliest" && !start) {
+    throw new Error(`take_from=earliest requires ${startName}.`);
+  }
+
+  if (start && end && Date.parse(start) > Date.parse(end)) {
+    throw new Error(`${startName} must not be after ${endName}.`);
+  }
 }

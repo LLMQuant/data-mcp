@@ -28,8 +28,10 @@ function createToolHarness() {
 
 test("paper_search forwards Web data and preserves credit metadata", async () => {
   const harness = createToolHarness();
+  const calls: unknown[] = [];
   const api = {
-    async searchPaper() {
+    async searchPaper(params: unknown) {
+      calls.push(params);
       return {
         data: [
           {
@@ -67,7 +69,7 @@ test("paper_search forwards Web data and preserves credit metadata", async () =>
   const payload = JSON.parse(
     await harness.get("paper_search").execute({
       query: "factor investing",
-      topK: 2,
+      limit: 2,
     }),
   ) as {
     summary: string;
@@ -80,6 +82,7 @@ test("paper_search forwards Web data and preserves credit metadata", async () =>
   assert.equal(payload.meta.remainingCredits, 9);
   assert.equal(payload.meta.creditsUsed, 1);
   assert.equal("items" in payload, false);
+  assert.deepEqual(calls[0], { query: "factor investing", limit: 2 });
 });
 
 test("paper_read treats ['all'] as a full-paper request", async () => {

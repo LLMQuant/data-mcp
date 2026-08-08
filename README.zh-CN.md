@@ -23,6 +23,9 @@
 
 ---
 
+> [!IMPORTANT]
+> **新能力：[公司 News](https://docs.llmquantdata.com/zh-CN/api/news/browse) 和 [Polymarket 预测市场](https://docs.llmquantdata.com/zh-CN/api/prediction-markets/events) 已经上线。** 你可以在一个 MCP server 中浏览公司动态、发现市场事件并跟踪隐含概率。
+
 金融数据，为 agent context 而生 — 不是给人看的，是给 agent 用的。
 
 ## 目录
@@ -82,10 +85,11 @@
 | `sec_13f_list_manager_holdings` | 列出某机构最新季度 13F 持仓（covered manager set × 至少最近 4 季度） | 1 |
 | `sec_13f_list_ticker_holders` | 列出持有某 ticker 的机构（covered manager set × 至少最近 4 季度） | 1 |
 | `sec_13f_list_top_managers` | 按 13F reportable value 列出 Top N smart money 机构（最新季度，最多 1000） | 0 |
+| `news_browse` | 按 ticker、事件、主题或日期浏览近期公司新闻 | 2 |
 | `personal_holdings` | 读取你在 LLMQuant Dashboard → Profile 保存的持仓（仅限你自己的账号） | 0 |
 | `personal_profile` | 读取你在 LLMQuant Dashboard → Profile 保存的财务背景（仅限你自己的账号） | 0 |
 
-<sub>* 未覆盖的 ticker 返回 `200` + coverage envelope，扣 `0` credit —— 覆盖探测免费，只有真正返回持仓时才扣 1 credit。</sub>
+<sub>* 暂不支持的 ETF ticker 返回 `200` + 明确的覆盖说明，扣 `0` credit —— 只有真正返回持仓时才扣 1 credit。</sub>
 
 预测市场工具按 event-first 流程使用：自然语言发现优先用 `polymarket_event_search`，只有 list / exact-filter 请求才用 `polymarket_event_browse`；再读选中的 event，继续读 market，最后用 outcome token 查概率历史。
 

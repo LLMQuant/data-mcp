@@ -20,7 +20,7 @@ const parameters = z
       .describe(
         'Event lifecycle filter. Defaults to "active"; pass "inactive" only for audit or recovery workflows.',
       ),
-    q: lexicalFilterQuerySchema
+    query: lexicalFilterQuerySchema
       .optional()
       .describe(
         "Optional exact lexical filter across event title, slug, description, tags, child market questions, and outcome labels. Not semantic; use polymarket_event_search for natural-language discovery.",
@@ -81,7 +81,7 @@ export function registerPolymarketEventBrowseTool(
     execute: async (
       {
         status,
-        q,
+        query,
         tag,
         asset,
         start_time,
@@ -96,7 +96,7 @@ export function registerPolymarketEventBrowseTool(
       try {
         const response = await getApiClient(api, context).browsePolymarketEvents({
           status,
-          q,
+          query,
           tag,
           asset,
           startTime: start_time,

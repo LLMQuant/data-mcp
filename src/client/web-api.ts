@@ -254,6 +254,7 @@ interface CryptoHistoricalApiResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -275,6 +276,7 @@ export interface CryptoHistoricalResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -320,6 +322,7 @@ interface EquityHistoricalApiResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -344,6 +347,7 @@ export interface EquityHistoricalResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -365,6 +369,7 @@ interface EquityIntradayApiResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -386,6 +391,7 @@ export interface EquityIntradayResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -996,6 +1002,7 @@ export interface PolymarketPriceHistoryResponse {
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
 }
 
@@ -1045,87 +1052,29 @@ export interface PersonalProfileResponse {
 // News types
 // ---------------------------------------------------------------------------
 
-interface NewsLabelApi {
-  type: string;
-  name: string;
-}
-
-interface NewsArticleApiResult {
-  news_article_id: string;
-  title: string;
-  source: {
-    publisher: string;
-    source_url: string;
-    published_at: string;
-    source_type: string;
-  };
-  processed_summary: {
-    text: string;
-  };
-  tickers: Array<{
-    symbol: string;
-    role: string;
-    confidence: number;
-  }>;
-  labels: NewsLabelApi[];
-  sentiment: {
-    polarity: string;
-    score: number | null;
-  } | null;
-  filing_ref: {
-    sec_filing_id: string;
-    accession_number: string | null;
-    section_key: string | null;
-  } | null;
-}
-
 interface NewsBrowseApiResponse {
   data: {
-    items: NewsArticleApiResult[];
+    items: Array<{
+      title: string;
+      abstract: string;
+      summary: string;
+      events: string[];
+      topics: string[];
+      tickers: string[];
+      published_at: string;
+      source_url: string;
+    }>;
     count: number;
-    nextCursor: string | null;
   };
   meta: {
     creditsUsed: number;
     remainingCredits: number;
+    notice?: string;
   };
-}
-
-export interface NewsArticle {
-  newsArticleId: string;
-  title: string;
-  source: {
-    publisher: string;
-    sourceUrl: string;
-    publishedAt: string;
-    sourceType: string;
-  };
-  processedSummary: {
-    text: string;
-  };
-  tickers: Array<{
-    symbol: string;
-    role: string;
-    confidence: number;
-  }>;
-  labels: NewsLabelApi[];
-  sentiment: {
-    polarity: string;
-    score: number | null;
-  } | null;
-  filingRef: {
-    secFilingId: string;
-    accessionNumber: string | null;
-    sectionKey: string | null;
-  } | null;
 }
 
 export interface NewsBrowseResponse {
-  data: {
-    items: NewsArticle[];
-    count: number;
-    nextCursor: string | null;
-  };
+  data: NewsBrowseApiResponse["data"];
   meta: NewsBrowseApiResponse["meta"];
 }
 
@@ -1155,14 +1104,14 @@ export class LlmquantWebApiClient {
 
   async searchWiki({
     query,
-    topK,
+    limit,
   }: {
     query: string;
-    topK: number;
+    limit: number;
   }): Promise<WikiSearchResponse> {
     const response = await this.request<SearchWikiApiResponse>("/api/wiki/search", {
       method: "POST",
-      body: JSON.stringify({ query, topK }),
+      body: JSON.stringify({ query, limit }),
     });
 
     return {
@@ -1220,14 +1169,14 @@ export class LlmquantWebApiClient {
 
   async searchPaper({
     query,
-    topK,
+    limit,
   }: {
     query: string;
-    topK: number;
+    limit: number;
   }): Promise<PaperSearchResponse> {
     const response = await this.request<SearchPaperApiResponse>("/api/paper/search", {
       method: "POST",
-      body: JSON.stringify({ query, topK }),
+      body: JSON.stringify({ query, limit }),
     });
 
     return {
@@ -1302,6 +1251,7 @@ export class LlmquantWebApiClient {
     startTime?: string;
     endTime?: string;
     limit?: number;
+    takeFrom?: "latest" | "earliest";
   }): Promise<CryptoHistoricalResponse> {
     const url = new URL("/api/crypto/historical", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
@@ -1317,6 +1267,9 @@ export class LlmquantWebApiClient {
 
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.takeFrom) {
+      url.searchParams.set("take_from", params.takeFrom);
     }
 
     const response = await this.request<CryptoHistoricalApiResponse>(url, {
@@ -1334,6 +1287,7 @@ export class LlmquantWebApiClient {
     startDate?: string;
     endDate?: string;
     limit?: number;
+    takeFrom?: "latest" | "earliest";
   }): Promise<EquityHistoricalResponse> {
     const url = new URL("/api/equity/historical", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
@@ -1348,6 +1302,9 @@ export class LlmquantWebApiClient {
 
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.takeFrom) {
+      url.searchParams.set("take_from", params.takeFrom);
     }
 
     const response = await this.request<EquityHistoricalApiResponse>(url, {
@@ -1380,6 +1337,7 @@ export class LlmquantWebApiClient {
     startDate?: string;
     endDate?: string;
     limit?: number;
+    takeFrom?: "latest" | "earliest";
   }): Promise<EquityIntradayResponse> {
     const url = new URL("/api/equity/intraday", this.env.baseUrl);
     url.searchParams.set("ticker", params.ticker);
@@ -1398,6 +1356,9 @@ export class LlmquantWebApiClient {
 
     if (params.limit != null) {
       url.searchParams.set("limit", String(params.limit));
+    }
+    if (params.takeFrom) {
+      url.searchParams.set("take_from", params.takeFrom);
     }
 
     const response = await this.request<EquityIntradayApiResponse>(url, {
@@ -1420,13 +1381,13 @@ export class LlmquantWebApiClient {
   }
 
   async getMacroIndicators(params: {
-    q?: string;
+    query?: string;
     category?: string;
     frequency?: string;
     limit?: number;
   }): Promise<MacroIndicatorsResponse> {
     const url = new URL("/api/macro/indicators", this.env.baseUrl);
-    if (params.q) url.searchParams.set("q", params.q);
+    if (params.query) url.searchParams.set("query", params.query);
     if (params.category) url.searchParams.set("category", params.category);
     if (params.frequency) url.searchParams.set("frequency", params.frequency);
     if (params.limit != null) url.searchParams.set("limit", String(params.limit));
@@ -1456,6 +1417,7 @@ export class LlmquantWebApiClient {
     startDate?: string;
     endDate?: string;
     limit?: number;
+    takeFrom?: "latest" | "earliest";
   }): Promise<MacroHistoricalResponse> {
     const url = new URL("/api/macro/historical", this.env.baseUrl);
     if (params.indicator) url.searchParams.set("indicator", params.indicator);
@@ -1463,6 +1425,7 @@ export class LlmquantWebApiClient {
     if (params.startDate) url.searchParams.set("start_date", params.startDate);
     if (params.endDate) url.searchParams.set("end_date", params.endDate);
     if (params.limit != null) url.searchParams.set("limit", String(params.limit));
+    if (params.takeFrom) url.searchParams.set("take_from", params.takeFrom);
 
     const response = await this.request<MacroHistoricalApiResponse>(url, { method: "GET" });
 
@@ -1723,7 +1686,7 @@ export class LlmquantWebApiClient {
 
   async browsePolymarketEvents(params: {
     status?: PolymarketEventStatus;
-    q?: string;
+    query?: string;
     tag?: string;
     asset?: string;
     startTime?: string;
@@ -1735,7 +1698,7 @@ export class LlmquantWebApiClient {
   }): Promise<PolymarketEventsResponse> {
     const url = new URL("/api/polymarket/events", this.env.baseUrl);
     if (params.status) url.searchParams.set("status", params.status);
-    if (params.q) url.searchParams.set("q", params.q);
+    if (params.query) url.searchParams.set("query", params.query);
     if (params.tag) url.searchParams.set("tag", params.tag);
     if (params.asset) url.searchParams.set("asset", params.asset);
     if (params.startTime) url.searchParams.set("start_time", params.startTime);
@@ -1760,16 +1723,12 @@ export class LlmquantWebApiClient {
     query: string;
     status?: PolymarketEventStatus;
     tag?: string;
-    startTime?: string;
-    endTime?: string;
     limit?: number;
   }): Promise<PolymarketEventsResponse> {
     const body = {
       query: params.query,
       status: params.status,
       tag: params.tag,
-      start_time: params.startTime,
-      end_time: params.endTime,
       limit: params.limit,
     };
     const response = await this.request<{ data: unknown; meta: PolymarketEventsResponse["meta"] }>(
@@ -1826,6 +1785,7 @@ export class LlmquantWebApiClient {
     startTime?: string;
     endTime?: string;
     limit?: number;
+    takeFrom?: "latest" | "earliest";
   }): Promise<PolymarketPriceHistoryResponse> {
     const url = new URL("/api/polymarket/price-history", this.env.baseUrl);
     url.searchParams.set("outcome_token_id", params.outcomeTokenId);
@@ -1833,6 +1793,7 @@ export class LlmquantWebApiClient {
     if (params.startTime) url.searchParams.set("start_time", params.startTime);
     if (params.endTime) url.searchParams.set("end_time", params.endTime);
     if (params.limit != null) url.searchParams.set("limit", String(params.limit));
+    if (params.takeFrom) url.searchParams.set("take_from", params.takeFrom);
 
     const response = await this.request<{
       data: unknown;
@@ -1846,27 +1807,22 @@ export class LlmquantWebApiClient {
   }
 
   async getNewsBrowse(params: {
-    ticker?: string;
-    labels?: string;
-    labelMode?: "any" | "all";
-    sourceType?: string;
+    tickers?: string[];
+    events?: string[];
+    topics?: string[];
     startDate?: string;
     endDate?: string;
-    limit?: number;
-    cursor?: string;
+    limit: number;
   }): Promise<NewsBrowseResponse> {
-    const url = new URL("/api/news/articles", this.env.baseUrl);
-    if (params.ticker) {
-      url.searchParams.set("ticker", params.ticker);
+    const url = new URL("/api/news/browse", this.env.baseUrl);
+    if (params.tickers) {
+      url.searchParams.set("tickers", params.tickers.join(","));
     }
-    if (params.labels) {
-      url.searchParams.set("labels", params.labels);
+    if (params.events) {
+      url.searchParams.set("events", params.events.join(","));
     }
-    if (params.labelMode) {
-      url.searchParams.set("label_mode", params.labelMode);
-    }
-    if (params.sourceType) {
-      url.searchParams.set("source_type", params.sourceType);
+    if (params.topics) {
+      url.searchParams.set("topics", params.topics.join(","));
     }
     if (params.startDate) {
       url.searchParams.set("start_date", params.startDate);
@@ -1874,54 +1830,13 @@ export class LlmquantWebApiClient {
     if (params.endDate) {
       url.searchParams.set("end_date", params.endDate);
     }
-    if (params.limit != null) {
-      url.searchParams.set("limit", String(params.limit));
-    }
-    if (params.cursor) {
-      url.searchParams.set("cursor", params.cursor);
-    }
+    url.searchParams.set("limit", String(params.limit));
 
     const response = await this.request<NewsBrowseApiResponse>(url, {
       method: "GET",
     });
 
-    return {
-      data: {
-        items: response.data.items.map((item) => ({
-          newsArticleId: item.news_article_id,
-          title: item.title,
-          source: {
-            publisher: item.source.publisher,
-            sourceUrl: item.source.source_url,
-            publishedAt: item.source.published_at,
-            sourceType: item.source.source_type,
-          },
-          processedSummary: {
-            text: item.processed_summary.text,
-          },
-          tickers: item.tickers,
-          labels: item.labels ?? [],
-          sentiment:
-            item.sentiment === null
-              ? null
-              : {
-                  polarity: item.sentiment.polarity,
-                  score: item.sentiment.score,
-                },
-          filingRef:
-            item.filing_ref === null
-              ? null
-              : {
-                  secFilingId: item.filing_ref.sec_filing_id,
-                  accessionNumber: item.filing_ref.accession_number,
-                  sectionKey: item.filing_ref.section_key,
-                },
-        })),
-        count: response.data.count,
-        nextCursor: response.data.nextCursor,
-      },
-      meta: response.meta,
-    };
+    return response;
   }
 
   async getPersonalHoldings(params: {

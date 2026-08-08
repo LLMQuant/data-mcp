@@ -34,8 +34,10 @@ export function registerSec13fByTickerTool(
       "manager_period_reportable_value_usd, manager_period_of_report, position " +
       "fields (cusip, title_of_class, value_usd, shares, shares_type, " +
       "accession_number).\n\n" +
-      "Coverage: limited to the Top 1,000 manager set — this is NOT " +
-      "the full set of 13F filers holding the ticker. A quarter outside the " +
+      "Coverage: limited to the requested quarter's Top 1,000 manager set — this " +
+      "is NOT the full set of 13F filers holding the ticker, and each quarter is " +
+      "filtered by its own set (an older quarter's holders stay stable when a newer " +
+      "quarter is released). A quarter outside the " +
       "covered window returns empty holders + an explanatory notice. " +
       "Reportable value is an AUM proxy (excludes " +
       "fixed income, options, non-U.S. holdings, shorts).\n\n" +

@@ -4,7 +4,14 @@ import { z } from "zod";
 import { getApiClient, type ApiClientProvider } from "../client/api-provider";
 import { describeToolError } from "../shared/errors";
 import { formatToolResult } from "../shared/result";
-import { equityTickerSchema, equityLimitSchema } from "../shared/schemas";
+import {
+  dateSchema,
+  earliestHasStartDate,
+  equityLimitSchema,
+  equityTickerSchema,
+  orderedDateRange,
+  takeFromSchema,
+} from "../shared/schemas";
 
 export function registerEquityHistoricalTool(
   server: McpToolRegistry,
@@ -13,48 +20,59 @@ export function registerEquityHistoricalTool(
   server.addTool({
     name: "equity_historical_prices",
     description:
-      "Query US equity historical daily OHLCV prices. Returns closed trading days only. " +
-      "Includes adjusted_close, dividend, and stock_split fields. " +
-      "Two usage patterns: (1) pass limit for the most recent bars; " +
-      "(2) pass start_date + end_date for a specific date range. " +
-      "Do not pass start_date without end_date or vice versa.",
-    parameters: z.object({
-      ticker: equityTickerSchema.describe(
-        'US equity ticker (e.g. "AAPL", "MSFT", "BRK.B", "^GSPC" for S&P 500 index).',
-      ),
-      start_date: z
-        .string()
-        .optional()
-        .describe(
-          "Start of date range in YYYY-MM-DD format (e.g. 2025-04-01). Must be used with end_date.",
+      "Query US equity daily OHLCV prices by trading date. " +
+      "Use start_date/end_date to bound the window; single boundaries are allowed. " +
+      "limit keeps at most N trading days, take_from chooses latest or earliest candidates, and results return oldest first.",
+    parameters: z
+      .object({
+        ticker: equityTickerSchema.describe(
+          'US equity ticker (e.g. "AAPL", "MSFT", "BRK.B", "^GSPC" for S&P 500 index).',
         ),
-      end_date: z
-        .string()
-        .optional()
-        .describe(
-          "End of date range in YYYY-MM-DD format. Must be used with start_date.",
-        ),
-      limit: equityLimitSchema
-        .optional()
-        .describe(
-          "Number of recent trading days (ignored when start_date/end_date are set). " +
-          "Default: 30. Max: 200.",
-        ),
-    }),
-    execute: async ({ ticker, start_date, end_date, limit }, context) => {
+        start_date: dateSchema
+          .optional()
+          .describe(
+            "Inclusive YYYY-MM-DD window start (e.g. 2025-04-01).",
+          ),
+        end_date: dateSchema
+          .optional()
+          .describe(
+            "Inclusive YYYY-MM-DD window end.",
+          ),
+        limit: equityLimitSchema
+          .optional()
+          .describe(
+            "Maximum trading days to keep after date filtering. " +
+            "Default: 30. Max: 200.",
+          ),
+        take_from: takeFromSchema
+          .default("latest")
+          .describe(
+            'Which side of the filtered window to keep when more than limit trading days match. Default: "latest".',
+          ),
+      })
+      .refine(orderedDateRange, {
+        message: "start_date must not be after end_date.",
+      })
+      .refine(earliestHasStartDate, {
+        message: "take_from=earliest requires start_date.",
+      }),
+    execute: async ({ ticker, start_date, end_date, limit, take_from }, context) => {
       try {
-        // Schema description promises "limit is ignored when start_date/end_date
-        // are set" — enforce that contract at the MCP boundary so the protocol
-        // surface is the single source of truth, not downstream behavior.
-        // See contexts/mcp/design/tool-expansion.md §十一.
-        const isRangeMode = Boolean(start_date && end_date);
-        const effectiveLimit = isRangeMode ? undefined : limit;
+        const effectiveTakeFrom = take_from ?? "latest";
+        assertHistoricalWindow({
+          start: start_date,
+          end: end_date,
+          takeFrom: effectiveTakeFrom,
+          startName: "start_date",
+          endName: "end_date",
+        });
 
         const response = await getApiClient(api, context).getEquityHistorical({
           ticker,
           startDate: start_date,
           endDate: end_date,
-          limit: effectiveLimit,
+          limit,
+          takeFrom: effectiveTakeFrom,
         });
 
         const summary =
@@ -72,4 +90,26 @@ export function registerEquityHistoricalTool(
       }
     },
   });
+}
+
+function assertHistoricalWindow({
+  start,
+  end,
+  takeFrom,
+  startName,
+  endName,
+}: {
+  start?: string;
+  end?: string;
+  takeFrom: "latest" | "earliest";
+  startName: string;
+  endName: string;
+}) {
+  if (takeFrom === "earliest" && !start) {
+    throw new Error(`take_from=earliest requires ${startName}.`);
+  }
+
+  if (start && end && Date.parse(`${start}T00:00:00Z`) > Date.parse(`${end}T00:00:00Z`)) {
+    throw new Error(`${startName} must not be after ${endName}.`);
+  }
 }

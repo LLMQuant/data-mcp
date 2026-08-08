@@ -21,7 +21,14 @@ function createToolHarness() {
         throw new Error(`Missing tool: ${name}`);
       }
 
-      return tool;
+      return tool as typeof tool & {
+        parameters: {
+          safeParse(input: unknown): {
+            success: boolean;
+            error?: { issues: Array<{ message: string }> };
+          };
+        };
+      };
     },
   };
 }
@@ -84,7 +91,7 @@ test("crypto_historical_klines formats candle data and preserves metadata", asyn
   assert.equal("item" in payload, false);
 });
 
-test("crypto_historical_klines drops `limit` in range mode (regression #280, tool-expansion §十一)", async () => {
+test("crypto_historical_klines forwards limit and take_from with time boundaries", async () => {
   const harness = createToolHarness();
   const captured: Array<Record<string, unknown>> = [];
   const api = {
@@ -104,15 +111,31 @@ test("crypto_historical_klines drops `limit` in range mode (regression #280, too
     start_time: "2025-01-01T00:00:00Z",
     end_time: "2025-03-31T00:00:00Z",
     limit: 30,
+    take_from: "earliest",
   });
 
   assert.equal(captured.length, 1);
-  // The user passed limit=30 alongside a date range. The MCP tool MUST
-  // enforce the "ignored when start_time/end_time are set" promise from the
-  // schema description by sending limit: undefined downstream.
-  assert.equal(captured[0]?.limit, undefined);
+  assert.equal(captured[0]?.limit, 30);
+  assert.equal(captured[0]?.takeFrom, "earliest");
   assert.equal(captured[0]?.startTime, "2025-01-01T00:00:00Z");
   assert.equal(captured[0]?.endTime, "2025-03-31T00:00:00Z");
+});
+
+test("crypto_historical_klines rejects impossible calendar timestamps", () => {
+  const harness = createToolHarness();
+  registerCryptoHistoricalTool(harness.server, {} as never);
+
+  const result = harness.get("crypto_historical_klines").parameters.safeParse({
+    ticker: "BTC-USD",
+    interval: "1d",
+    start_time: "2026-02-30T00:00:00Z",
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(
+    result.success ? "" : result.error?.issues[0]?.message ?? "",
+    "datetime must be a valid ISO 8601 UTC timestamp.",
+  );
 });
 
 test("crypto_historical_klines forwards `limit` in recent mode", async () => {
@@ -136,8 +159,30 @@ test("crypto_historical_klines forwards `limit` in recent mode", async () => {
   });
 
   assert.equal(captured[0]?.limit, 50);
+  assert.equal(captured[0]?.takeFrom, "latest");
   assert.equal(captured[0]?.startTime, undefined);
   assert.equal(captured[0]?.endTime, undefined);
+});
+
+test("crypto_historical_klines rejects earliest without start_time before Web call", async () => {
+  const harness = createToolHarness();
+  const api = {
+    async getCryptoHistorical() {
+      throw new Error("should not call Web API");
+    },
+  };
+
+  registerCryptoHistoricalTool(harness.server, api as never);
+  await assert.rejects(
+    () =>
+      harness.get("crypto_historical_klines").execute({
+        ticker: "BTC-USD",
+        interval: "1d",
+        end_time: "2025-03-31T00:00:00Z",
+        take_from: "earliest",
+      }),
+    /requires start_time/,
+  );
 });
 
 test("crypto_historical_klines handles empty result", async () => {

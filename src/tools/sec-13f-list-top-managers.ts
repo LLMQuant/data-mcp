@@ -29,9 +29,13 @@ export function registerSec13fListTopManagersTool(
       "manager-set quarter).\n\n" +
       "Returns per entry: manager_cik, manager_name, aliases, period_rank, " +
       "period_reportable_value_usd. Top-level: data.manager_set_period (the quarter " +
-      "that picked the Top 1,000 set; fixed to most recent covered quarter) and " +
-      "data.ranking_period (the quarter the response's ranks/values come from; " +
-      "equals your input or the manager-set quarter).\n\n" +
+      "whose Top 1,000 this response covers) and data.ranking_period (the quarter the " +
+      "ranks/values come from). Each quarter returns that quarter's own Top 1,000, so " +
+      "data.manager_set_period equals data.ranking_period — both are the quarter you " +
+      "query (or the latest covered quarter when you omit year/quarter). Query a " +
+      "different quarter to get that quarter's own roster; rosters change across " +
+      "quarters as managers move in and out, and an older quarter's roster stays " +
+      "stable when a newer quarter is released.\n\n" +
       "Coverage: ranking data is stored for at least the last 4 covered " +
       "quarters; a year/quarter outside that window returns empty managers " +
       "with an explanatory notice. " +
