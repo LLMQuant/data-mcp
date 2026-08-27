@@ -16,8 +16,8 @@ import {
 
 const INTRADAY_MAX_RANGE_DAYS = 14;
 
-// Window-width cap message (tool-query-contract.md §2.7): must state the cap AND
-// an actionable next step. Kept byte-identical with the Web route message.
+// Window-width cap message: must state the cap and an actionable next step.
+// Kept byte-identical with the Web route message.
 const INTRADAY_RANGE_LIMIT_MESSAGE =
   `date range must be ${INTRADAY_MAX_RANGE_DAYS} calendar days or less; ` +
   "when end_date is omitted it defaults to the current US Eastern date. " +

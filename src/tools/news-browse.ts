@@ -9,8 +9,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_NEWS_LIMIT = 10;
 const MAX_NEWS_LIMIT = 25;
 
-// Executable mirror of contexts/project/data/news-taxonomy.md v3. The Web
-// boundary carries the same closed sets and rejects unknown filter values.
+// Executable mirror of the public News taxonomy. The Web boundary carries the
+// same closed sets and rejects unknown filter values.
 const NEWS_EVENT_VALUES = [
   "earnings",
   "guidance",

@@ -19,8 +19,8 @@ export function registerSecFilingBrowseTool(
     description:
       "Browse SEC filing metadata for a U.S. ticker by filing date. " +
       "Filter by filing_type when needed; results are newest first. " +
-      "Use sec_filing_read with an accession_number or period selector to fetch filing sections. " +
-      "8-K is event-driven: browse first and pass accession_number to sec_filing_read; year/quarter cannot locate an 8-K. " +
+      "Pass browse results into sec_filing_read to fetch section text: map camelCase output fields filingType, accessionNumber, and sectionKeys to read inputs filing.filing_type, filing.accession_number, and items. " +
+      "8-K is event-driven: browse first and pass accessionNumber as filing.accession_number to sec_filing_read; year/quarter cannot locate an 8-K. " +
       "This is not a semantic search tool.",
     parameters: z.object({
       ticker: equityTickerSchema.describe(

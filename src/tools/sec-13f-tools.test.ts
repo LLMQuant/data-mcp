@@ -27,11 +27,11 @@ function createToolHarness() {
   };
 }
 
-// New unified envelope (contexts/project/api/response-contract.md §三): the 13F
-// `meta.scope` object and `meta.scope_notice` are gone. The only meta fields are
-// creditsUsed / remainingCredits / optional `notice`. "No data" / out-of-scope
-// explanations now arrive as a 200 + (possibly empty) data + a server-rendered
-// `meta.notice`, which MCP forwards verbatim (never synthesizes itself).
+// New unified envelope: the 13F `meta.scope` object and `meta.scope_notice` are
+// gone. The only meta fields are creditsUsed / remainingCredits / optional
+// `notice`. "No data" / out-of-scope explanations now arrive as a 200 +
+// (possibly empty) data + a server-rendered `meta.notice`, which MCP forwards
+// verbatim (never synthesizes itself).
 
 test("sec_13f_list_manager_holdings forwards (year, quarter) and surfaces holdings summary", async () => {
   const harness = createToolHarness();

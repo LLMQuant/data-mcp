@@ -53,7 +53,7 @@ Configure once — every agent in your stack gets the data.
 </p>
 
 > [!TIP]
-> We're also building **llmquantdata-skills** — a companion set of agent skills that combine these data tools into ready‑made AI‑native financial workflows (equity research, macro analysis, etc.). Stay tuned.
+> **[LLMQuant Skills](https://github.com/LLMQuant/skills) is live.** It combines these tools into ready‑made financial workflows for equity research, macro analysis, and more. Install the catalog or enable first-party Skills in the Agent Playground.
 
 ## Available Tools
 
@@ -229,7 +229,7 @@ Paste the full URL into Claude's custom connector flow. The hosted URL is separa
 - [x] Streamable HTTP transport (remote MCP without local Node.js)
 - [ ] OAuth connector flow for Claude Connectors Directory
 - [ ] More data products — company fundamentals, earnings transcripts
-- [ ] Agent skills companion package (**llmquantdata-skills**)
+- [x] Agent skills companion catalog ([LLMQuant/skills](https://github.com/LLMQuant/skills))
 - [ ] Integration guides for more agent frameworks
 
 Have a feature request? [Open an issue](https://github.com/LLMQuant/data-mcp/issues) or email us at **contact@llmquant.com**.

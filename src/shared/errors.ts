@@ -1,8 +1,7 @@
 // Fail-closed generic used only when Web did NOT hand us a usable
 // `{ error: { code, message } }` body (malformed / non-JSON / missing). When
 // Web sends its sanitized error envelope we surface that message verbatim —
-// Web is the single owner of public error phrasing (see
-// contexts/project/api/response-contract.md §五, §九).
+// Web is the single owner of public error phrasing.
 const GENERIC_API_ERROR_MESSAGE =
   "The LLMQuant API request could not be completed. Please try again later.";
 

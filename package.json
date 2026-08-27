@@ -1,6 +1,6 @@
 {
   "name": "@llmquant/data-mcp",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "LLMQuant Data MCP server — financial data for AI agents: wiki & research papers, crypto & equity prices, ETF, macro indicators, SEC filings (10-K/10-Q/8-K) & 13F holdings, prediction markets, company news, and personal portfolio context.",
   "type": "module",
   "bin": {

@@ -84,7 +84,7 @@ test("registerLlmquantDataTools rejects unknown legacy fields before execution",
   );
 });
 
-test("registerLlmquantDataTools names the replacement for renamed parameters", () => {
+test("registerLlmquantDataTools gives tool-scoped guidance for legacy parameters", () => {
   const harness = createToolHarness();
 
   registerLlmquantDataTools(harness.server, {} as ApiClientProvider);
@@ -95,28 +95,35 @@ test("registerLlmquantDataTools names the replacement for renamed parameters", (
     return result.success ? "" : result.error.issues[0].message;
   };
 
-  // B7/B8: the old names are rejected, and the message must say what to send
-  // instead instead of zod's bare `Unrecognized key: "topK"`.
+  // Only name a replacement when the selected tool accepts it.
   assert.equal(
     messageFor("wiki_search", { query: "risk parity", topK: 10 }),
-    'Unrecognized parameter(s): "topK" was renamed to "limit".',
+    'Unrecognized parameter(s): use "limit" instead. Remove any other unsupported parameters.',
   );
   assert.equal(
     messageFor("paper_search", { query: "momentum", topK: 10 }),
-    'Unrecognized parameter(s): "topK" was renamed to "limit".',
+    'Unrecognized parameter(s): use "limit" instead. Remove any other unsupported parameters.',
   );
   assert.equal(
     messageFor("macro_indicator_search", { q: "cpi" }),
-    'Unrecognized parameter(s): "q" was renamed to "query".',
+    'Unrecognized parameter(s): use "query" instead. Remove any other unsupported parameters.',
   );
   assert.equal(
     messageFor("polymarket_event_browse", { q: "bitcoin" }),
-    'Unrecognized parameter(s): "q" was renamed to "query".',
+    'Unrecognized parameter(s): use "query" instead. Remove any other unsupported parameters.',
+  );
+  assert.equal(
+    messageFor("wiki_read", { wikiItemId: "wiki-item-123", q: "risk parity" }),
+    "Unrecognized parameter(s): remove unsupported parameters.",
+  );
+  assert.equal(
+    messageFor("crypto_snapshot", { ticker: "BTC-USD", topK: 10 }),
+    "Unrecognized parameter(s): remove unsupported parameters.",
   );
   // Unknown keys with no known replacement still get a public-safe message.
   assert.equal(
     messageFor("wiki_search", { query: "a", topK: 1, nonsense: true }),
-    'Unrecognized parameter(s): "topK" was renamed to "limit"; "nonsense" is not a supported parameter.',
+    'Unrecognized parameter(s): use "limit" instead. Remove any other unsupported parameters.',
   );
   // B12: withdrawn parameters are rejected rather than silently ignored.
   assert.equal(
@@ -125,7 +132,7 @@ test("registerLlmquantDataTools names the replacement for renamed parameters", (
       start_time: "2026-01-01T00:00:00Z",
       end_time: "2026-02-01T00:00:00Z",
     }),
-    'Unrecognized parameter(s): "start_time" is not a supported parameter; "end_time" is not a supported parameter.',
+    "Unrecognized parameter(s): remove unsupported parameters.",
   );
 });
 
@@ -134,9 +141,8 @@ test("registerLlmquantDataTools rejects take_from=earliest without a start bound
 
   registerLlmquantDataTools(harness.server, {} as ApiClientProvider);
 
-  // tool-query-contract.md §2.2: this must fail as invalid params (parse
-  // stage), matching the hosted registry's error envelope — not only inside
-  // execute().
+  // This must fail as invalid params at parse stage, matching the hosted
+  // registry's error envelope — not only inside execute().
   const dateSeries: Array<[string, Record<string, unknown>, Record<string, unknown>]> = [
     ["equity_historical_prices", { ticker: "AAPL" }, { start_date: "2026-06-01" }],
     [

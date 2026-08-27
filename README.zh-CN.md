@@ -53,7 +53,7 @@
 </p>
 
 > [!TIP]
-> 我们还在做 **llmquantdata-skills** — 把这些数据工具串成现成的金融工作流（个股研究、宏观分析等），开箱即用。
+> **[LLMQuant Skills](https://github.com/LLMQuant/skills) 已上线** — 把这些数据工具串成现成的金融工作流（个股研究、宏观分析等）。你可以安装这个 catalog，或在 Agent Playground 里启用 first-party Skills。
 
 ## 可用工具
 
@@ -229,7 +229,7 @@ https://mcp.llmquantdata.com/u/lqd_mcp_.../mcp
 - [x] Streamable HTTP transport（不装 Node.js 也能远程用）
 - [ ] Claude Connectors Directory OAuth 流程
 - [ ] 更多数据 — 公司基本面、earnings call
-- [ ] Agent skills 配套包（**llmquantdata-skills**）
+- [x] Agent skills 配套 catalog（[LLMQuant/skills](https://github.com/LLMQuant/skills)）
 - [ ] 更多 agent 框架接入指南
 
 有想法？[提 Issue](https://github.com/LLMQuant/data-mcp/issues) 或邮件 **contact@llmquant.com**。

@@ -23,11 +23,10 @@ export const searchLimitSchema = z
 export const takeFromSchema = z.enum(["latest", "earliest"]);
 
 /**
- * Parse-time guards for the historical-series boundary matrix
- * (tool-query-contract.md §2.2). These run as zod refinements so a bad window
- * fails as `invalid params` before `execute()` — the same error envelope the
- * hosted registry produces. The equivalent `execute()` checks stay in place as
- * defense-in-depth for direct callers that bypass the registry wrapper.
+ * Parse-time guards for historical-series boundaries. These run as zod
+ * refinements so a bad window fails before `execute()`. Equivalent
+ * `execute()` checks stay in place for direct callers that bypass the registry
+ * wrapper.
  */
 export function earliestHasStartDate<
   T extends { start_date?: string; take_from?: "latest" | "earliest" },
@@ -204,6 +203,18 @@ export const secItemsSchema = z
   )
   .min(1, "items must contain at least one section key.")
   .max(25, "items must contain 25 or fewer section keys.");
+
+/**
+ * SEC accession numbers always look like `0000320193-26-000050`. Pinning the
+ * shape stops a model from attempting to omit the field by passing placeholder
+ * text such as `:none`. Non-matching strings are rejected during validation.
+ */
+export const secAccessionNumberSchema = z
+  .string()
+  .regex(
+    /^\d{10}-\d{2}-\d{6}$/u,
+    'accession_number must look like "0000320193-26-000050" (10 digits, 2 digits, 6 digits). Use an accession_number returned by sec_filing_browse; placeholder text is not accepted.',
+  );
 
 export const secYearSchema = z
   .number()

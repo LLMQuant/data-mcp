@@ -65,7 +65,10 @@ export function registerLlmquantDataTools(
 function strictRegistry(server: McpToolRegistry): McpToolRegistry {
   return {
     addTool(tool) {
-      const parameters = strictParameters(tool.parameters);
+      const parameters = strictParameters(
+        tool.parameters,
+        LEGACY_PARAMETER_REPLACEMENTS_BY_TOOL[tool.name],
+      );
       server.addTool({
         ...tool,
         parameters,
@@ -76,27 +79,36 @@ function strictRegistry(server: McpToolRegistry): McpToolRegistry {
 }
 
 /**
- * Public parameter names that were renamed by the query-contract refactor
- * (tool-query-contract.md §六 B7/B8). The registry-level strict wrapper rejects
- * the old names; without this map an Agent only sees zod's default
- * `Unrecognized key: "topK"` and is never told what to send instead. Kept
- * byte-identical with the hosted registry's copy in `lib/mcp-vercel.ts`.
+ * Maps removed parameter names to their current names for clear validation
+ * messages.
+ *
+ * Replacements are scoped to each tool, so an error never suggests a parameter
+ * that the selected tool does not accept.
  */
-const RENAMED_TOOL_PARAMETERS: Record<string, string> = {
-  topK: "limit",
-  top_k: "limit",
-  q: "query",
+const LEGACY_PARAMETER_REPLACEMENTS_BY_TOOL: Record<
+  string,
+  Readonly<Record<string, string>>
+> = {
+  wiki_search: { topK: "limit", top_k: "limit" },
+  paper_search: { topK: "limit", top_k: "limit" },
+  macro_indicator_search: { q: "query" },
+  polymarket_event_browse: { q: "query" },
 };
 
-export function describeUnrecognizedParameters(keys: readonly string[]) {
-  const details = keys.map((key) => {
-    const replacement = RENAMED_TOOL_PARAMETERS[key];
-    return replacement
-      ? `"${key}" was renamed to "${replacement}"`
-      : `"${key}" is not a supported parameter`;
-  });
+export function describeUnrecognizedParameters(
+  keys: readonly string[],
+  legacyParameterReplacements: Readonly<Record<string, string>> = {},
+) {
+  const replacements = Array.from(
+    new Set(keys.map((key) => legacyParameterReplacements[key]).filter(Boolean)),
+  );
 
-  return `Unrecognized parameter(s): ${details.join("; ")}.`;
+  if (replacements.length > 0) {
+    const replacementList = replacements.map((replacement) => `"${replacement}"`).join(", ");
+    return `Unrecognized parameter(s): use ${replacementList} instead. Remove any other unsupported parameters.`;
+  }
+
+  return "Unrecognized parameter(s): remove unsupported parameters.";
 }
 
 type StrictableSchema<Schema> = Schema & {
@@ -108,15 +120,18 @@ type StrictableSchema<Schema> = Schema & {
 function unrecognizedParameterErrorMap(issue: {
   code?: string;
   keys?: readonly string[];
-}) {
+}, legacyParameterReplacements: Readonly<Record<string, string>>) {
   if (issue.code !== "unrecognized_keys" || !issue.keys?.length) {
     return undefined;
   }
 
-  return describeUnrecognizedParameters(issue.keys);
+  return describeUnrecognizedParameters(issue.keys, legacyParameterReplacements);
 }
 
-function strictParameters<Schema extends z.ZodTypeAny>(schema: Schema): Schema {
+function strictParameters<Schema extends z.ZodTypeAny>(
+  schema: Schema,
+  legacyParameterReplacements: Readonly<Record<string, string>> = {},
+): Schema {
   const maybeObject = schema as StrictableSchema<Schema>;
 
   if (typeof maybeObject.strict !== "function") {
@@ -130,5 +145,9 @@ function strictParameters<Schema extends z.ZodTypeAny>(schema: Schema): Schema {
     return strict;
   }
 
-  return strict.clone({ ...def, error: unrecognizedParameterErrorMap });
+  return strict.clone({
+    ...def,
+    error: (issue: { code?: string; keys?: readonly string[] }) =>
+      unrecognizedParameterErrorMap(issue, legacyParameterReplacements),
+  });
 }

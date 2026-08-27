@@ -539,10 +539,9 @@ export interface MacroSnapshotResponse {
 // ---------------------------------------------------------------------------
 
 /**
- * The unified success envelope `meta` (see
- * contexts/project/api/response-contract.md §三): credits + an optional
- * server-rendered `notice` that explains an empty / partial result. MCP never
- * generates this prose itself; it forwards whatever Web sends.
+ * The unified success envelope `meta`: credits + an optional server-rendered
+ * `notice` that explains an empty / partial result. MCP never generates this
+ * prose itself; it forwards whatever Web sends.
  */
 interface SecForwardedMeta {
   creditsUsed: number;
